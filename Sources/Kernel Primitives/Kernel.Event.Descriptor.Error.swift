@@ -55,24 +55,4 @@
         }
     }
 
-    // MARK: - Kernel.Error Conversion
-
-    extension Kernel.Error {
-        /// Creates a semantic error from an event descriptor error.
-        ///
-        /// Maps to semantic cases where possible, falls back to `.platform` otherwise.
-        public init(_ error: Kernel.Event.Descriptor.Error) {
-            switch error {
-            case .create(let code):
-                self = Kernel.Error(code) ?? .platform(Kernel.Error.Unmapped.Error(code))
-            case .read(let code):
-                self = Kernel.Error(code) ?? .platform(Kernel.Error.Unmapped.Error(code))
-            case .write(let code):
-                self = Kernel.Error(code) ?? .platform(Kernel.Error.Unmapped.Error(code))
-            case .wouldBlock:
-                self = .blocking(.wouldBlock)
-            }
-        }
-    }
-
 #endif
