@@ -117,7 +117,7 @@ extension Kernel.Outcome {
     /// Use when you want to propagate interruption as an error rather than
     /// handling it explicitly.
     @inlinable
-    public func get() throws -> Void where Failure: Swift.Error {
+    public func get() throws where Failure: Swift.Error {
         switch self {
         case .success:
             return

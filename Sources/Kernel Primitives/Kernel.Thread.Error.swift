@@ -38,4 +38,3 @@ extension Kernel.Thread.Error: CustomStringConvertible {
         }
     }
 }
-

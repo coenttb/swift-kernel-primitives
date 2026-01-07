@@ -60,4 +60,3 @@ public struct Options: OptionSet, Sendable, Equatable, Hashable {
     }
 
 #endif
-
