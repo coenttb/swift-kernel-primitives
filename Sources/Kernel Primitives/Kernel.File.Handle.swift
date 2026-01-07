@@ -150,7 +150,7 @@ extension Kernel.File.Handle {
         buffer: Kernel.Memory.Address,
         offset: Kernel.File.Offset,
         length: Kernel.File.Size
-    ) throws(Error) {
+    ) throws(Kernel.File.Handle.Error) {
         guard case .known(let alignment) = requirements else {
             throw .requirementsUnknown
         }

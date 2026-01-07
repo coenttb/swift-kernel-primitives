@@ -16,8 +16,8 @@ let package = Package(
             targets: ["Kernel Primitives"]
         ),
         .library(
-            name: "Kernel Test Support",
-            targets: ["Kernel Test Support"]
+            name: "Kernel Primitives Test Support",
+            targets: ["Kernel Primitives Test Support"]
         ),
     ],
     dependencies: [
@@ -46,7 +46,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "Kernel Test Support",
+            name: "Kernel Primitives Test Support",
             dependencies: [
                 "Kernel Primitives"
             ],
@@ -56,7 +56,7 @@ let package = Package(
             name: "Kernel Primitives Tests",
             dependencies: [
                 "Kernel Primitives",
-                "Kernel Test Support",
+                "Kernel Primitives Test Support",
                 .product(name: "StandardsTestSupport", package: "swift-standards")
             ],
             path: "Tests/Kernel Primitives Tests"

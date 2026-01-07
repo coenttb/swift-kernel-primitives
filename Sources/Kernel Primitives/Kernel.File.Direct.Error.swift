@@ -84,7 +84,7 @@ extension Kernel.File.Direct.Error: CustomStringConvertible {
 
 extension Kernel.File.Direct.Error {
     /// Creates a semantic error from a raw syscall error.
-    package init(from syscall: Syscall) {
+    public init(from syscall: Syscall) {
         switch syscall {
         case .invalidDescriptor:
             self = .invalidHandle

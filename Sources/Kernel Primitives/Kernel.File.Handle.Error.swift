@@ -64,7 +64,7 @@ extension Kernel.File.Handle {
 #if !os(Windows)
     extension Kernel.File.Handle.Error {
         /// Creates an error from a POSIX errno.
-        package init(posixErrno: Int32, operation: Kernel.File.Handle.Operation) {
+        public init(posixErrno: Int32, operation: Kernel.File.Handle.Operation) {
             switch posixErrno {
             case EBADF:
                 self = .invalidHandle
@@ -94,7 +94,7 @@ extension Kernel.File.Handle {
 
     extension Kernel.File.Handle.Error {
         /// Creates an error from a Windows error code.
-        package init(windowsError: UInt32, operation: Kernel.File.Handle.Operation) {
+        public init(windowsError: UInt32, operation: Kernel.File.Handle.Operation) {
             switch windowsError {
             case DWORD(ERROR_INVALID_HANDLE):
                 self = .invalidHandle
@@ -115,7 +115,7 @@ extension Kernel.File.Handle {
 
 extension Kernel.File.Handle.Error {
     /// Creates a handle error from a Direct I/O error.
-    package init(from directError: Kernel.File.Direct.Error) {
+    public init(from directError: Kernel.File.Direct.Error) {
         switch directError {
         case .notSupported:
             self = .requirementsUnknown
@@ -149,7 +149,7 @@ extension Kernel.File.Handle.Error {
 
 extension Kernel.File.Handle.Error {
     /// Creates an IO handle error from a Kernel read error.
-    package init(from error: Kernel.IO.Read.Error, operation: Kernel.File.Handle.Operation) {
+    public init(from error: Kernel.IO.Read.Error, operation: Kernel.File.Handle.Operation) {
         switch error {
         case .handle(let handleError):
             switch handleError {
@@ -176,7 +176,7 @@ extension Kernel.File.Handle.Error {
 
 extension Kernel.File.Handle.Error {
     /// Creates an IO handle error from a Kernel write error.
-    package init(from error: Kernel.IO.Write.Error, operation: Kernel.File.Handle.Operation) {
+    public init(from error: Kernel.IO.Write.Error, operation: Kernel.File.Handle.Operation) {
         switch error {
         case .handle(let handleError):
             switch handleError {

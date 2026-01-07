@@ -198,7 +198,7 @@ extension Kernel.File.Direct.Requirements {
         ///   - descriptor: The file descriptor.
         ///   - enabled: `true` to enable no-cache, `false` to disable.
         /// - Throws: `Error.Syscall` if fcntl fails.
-        package static func setNoCache(
+        public static func setNoCache(
             descriptor: Kernel.File.Descriptor,
             enabled: Bool
         ) throws(Error.Syscall) {
@@ -223,7 +223,7 @@ extension Kernel.File.Direct.Requirements {
         ///
         /// On macOS, there are no alignment requirements since F_NOCACHE
         /// is a hint, not a strict bypass. Returns `.unknown(.platformUnsupported)`.
-        package static func getRequirements(
+        public static func getRequirements(
             descriptor: Int32
         ) throws(Error.Syscall) -> Requirements {
             // macOS F_NOCACHE has no alignment requirements
@@ -240,7 +240,7 @@ extension Kernel.File.Direct.Requirements {
         ///
         /// This is the flag to pass when opening a file for Direct I/O.
         /// Note: O_DIRECT must be set at open time, not after.
-        package static var openDirectFlag: Int32 {
+        public static var openDirectFlag: Int32 {
             O_DIRECT
         }
 
@@ -291,7 +291,7 @@ extension Kernel.File.Direct.Requirements {
         /// - 512 bytes: Legacy HDDs, some older filesystems
         /// - 4096 bytes: Modern SSDs, NVMe, most ext4/XFS configurations
         /// - Page size: Conservative fallback (typically 4096)
-        package static func getRequirements(
+        public static func getRequirements(
             descriptor: Int32
         ) throws(Error.Syscall) -> Requirements {
             // Linux O_DIRECT alignment is not reliably discoverable.
@@ -312,7 +312,7 @@ extension Kernel.File.Direct.Requirements {
         ///
         /// This is the flag to pass when opening a file for Direct I/O.
         /// Note: Must be set at CreateFile time, not after.
-        package static var openDirectFlag: UInt32 {
+        public static var openDirectFlag: UInt32 {
             UInt32(FILE_FLAG_NO_BUFFERING)
         }
 
@@ -334,7 +334,7 @@ extension Kernel.File.Direct.Requirements {
         /// This is more complex on Windows as we need to get the file path
         /// from the handle first. For simplicity, we require the path to be
         /// provided at open time.
-        package static func getRequirements(
+        public static func getRequirements(
             handle: UnsafeMutableRawPointer?
         ) throws(Error.Syscall) -> Requirements {
             guard handle != nil, handle != INVALID_HANDLE_VALUE else {

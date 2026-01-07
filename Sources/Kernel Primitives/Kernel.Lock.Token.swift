@@ -66,10 +66,10 @@ extension Kernel.Lock {
         /// - Throws: `Kernel.Lock.Error` if locking fails.
         public init(
             descriptor: Kernel.Descriptor,
-            range: Range = .file,
-            kind: Kind,
-            acquire: Acquire = .wait
-        ) throws(Error) {
+            range: Kernel.Lock.Range = .file,
+            kind: Kernel.Lock.Kind,
+            acquire: Kernel.Lock.Acquire = .wait
+        ) throws(Kernel.Lock.Error) {
             self.descriptor = descriptor
             self.range = range
             self.isReleased = false
@@ -88,7 +88,7 @@ extension Kernel.Lock {
         /// On failure, the token remains valid for retry - the lock is preserved.
         ///
         /// - Throws: `Kernel.Lock.Error` if the unlock syscall fails.
-        public mutating func release() throws(Error) {
+        public mutating func release() throws(Kernel.Lock.Error) {
             guard !isReleased else { return }
             try Kernel.Lock.unlock(descriptor, range: range)
             isReleased = true

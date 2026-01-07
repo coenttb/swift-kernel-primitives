@@ -10,7 +10,7 @@
 // ===----------------------------------------------------------------------===//
 
 import Binary
-import Kernel_Test_Support
+import Kernel_Primitives_Test_Support
 import StandardsTestSupport
 import Testing
 

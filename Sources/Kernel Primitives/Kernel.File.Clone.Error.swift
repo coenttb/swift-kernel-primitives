@@ -74,7 +74,7 @@ extension Kernel.File.Clone {
 
 extension Kernel.File.Clone.Error {
     /// Creates a semantic error from a raw syscall error.
-    package init(from syscall: Syscall) {
+    public init(from syscall: Syscall) {
         switch syscall {
         case .notSupported:
             self = .notSupported

@@ -48,8 +48,8 @@ extension Kernel.Error.Code {
         /// Captures current errno (POSIX only).
         ///
         /// Must be called immediately after a failing syscall, before any other libc call.
-        @usableFromInline
-        package static func captureErrno() -> Self {
+//        @usableFromInline
+        public static func captureErrno() -> Self {
             .posix(errno)
         }
     #endif
@@ -58,8 +58,8 @@ extension Kernel.Error.Code {
         /// Captures current GetLastError (Windows only).
         ///
         /// Must be called immediately after a failing syscall.
-        @usableFromInline
-        package static func captureLastError() -> Self {
+//        @usableFromInline
+        public static func captureLastError() -> Self {
             .win32(UInt32(GetLastError()))
         }
     #endif

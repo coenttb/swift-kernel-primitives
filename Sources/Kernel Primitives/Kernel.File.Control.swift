@@ -32,7 +32,7 @@ extension Kernel.File {
         /// - Parameter descriptor: The file descriptor to modify.
         /// - Throws: `Error` if fcntl fails.
         @inlinable
-        public static func setNonBlocking(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func setNonBlocking(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Control.Error) {
             #if canImport(Darwin)
                 var flags = Darwin.fcntl(descriptor.rawValue, F_GETFL)
                 guard flags >= 0 else {
@@ -68,7 +68,7 @@ extension Kernel.File {
         /// - Parameter descriptor: The file descriptor to modify.
         /// - Throws: `Error` if fcntl fails.
         @inlinable
-        public static func setBlocking(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func setBlocking(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Control.Error) {
             #if canImport(Darwin)
                 var flags = Darwin.fcntl(descriptor.rawValue, F_GETFL)
                 guard flags >= 0 else {
@@ -115,7 +115,7 @@ extension Kernel.File {
         ///
         /// - Parameter descriptor: The file handle.
         @inlinable
-        public static func setNonBlocking(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func setNonBlocking(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Control.Error) {
             // Windows uses a different I/O model (IOCP/Overlapped)
             // Non-blocking semantics are achieved through async I/O, not flags
         }
@@ -126,7 +126,7 @@ extension Kernel.File {
         ///
         /// - Parameter descriptor: The file handle.
         @inlinable
-        public static func setBlocking(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func setBlocking(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Control.Error) {
             // Windows handles are blocking by default
         }
     }

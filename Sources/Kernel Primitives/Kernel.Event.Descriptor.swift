@@ -42,7 +42,7 @@
         public static func create(
             initval: Kernel.Event.Counter = .zero,
             flags: Flags = .cloexec | .nonblock
-        ) throws(Error) -> Kernel.Descriptor {
+        ) throws(Kernel.Event.Descriptor.Error) -> Kernel.Descriptor {
             let efd = eventfd(UInt32(initval), flags.rawValue)
             guard efd >= 0 else {
                 throw .create(.captureErrno())
@@ -58,7 +58,7 @@
         /// - Returns: The counter value.
         /// - Throws: `Error.read` on failure, `Error.wouldBlock` in non-blocking mode.
         @inlinable
-        public static func read(_ efd: Kernel.Descriptor) throws(Error) -> Kernel.Event.Counter {
+        public static func read(_ efd: Kernel.Descriptor) throws(Kernel.Event.Descriptor.Error) -> Kernel.Event.Counter {
             var value: UInt64 = 0
             let result = withUnsafeMutablePointer(to: &value) { ptr in
                 Glibc.read(efd.rawValue, ptr, MemoryLayout<UInt64>.size)
@@ -84,7 +84,7 @@
         ///   - value: The value to add to the counter (must not be UInt64.max).
         /// - Throws: `Error.write` on failure, `Error.wouldBlock` in non-blocking mode.
         @inlinable
-        public static func write(_ efd: Kernel.Descriptor, value: Kernel.Event.Counter = .one) throws(Error) {
+        public static func write(_ efd: Kernel.Descriptor, value: Kernel.Event.Counter = .one) throws(Kernel.Event.Descriptor.Error) {
             var val = value.rawValue
             let result = withUnsafePointer(to: &val) { ptr in
                 Glibc.write(efd.rawValue, ptr, MemoryLayout<UInt64>.size)

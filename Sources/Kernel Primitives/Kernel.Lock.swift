@@ -86,7 +86,7 @@ extension Kernel.Lock.Error {
             _ descriptor: Kernel.Descriptor,
             range: Range,
             kind: Kind
-        ) throws(Error) {
+        ) throws(Kernel.Lock.Error) {
             var fl = makeFlock(range: range, kind: kind)
 
             let result = fcntl(descriptor.rawValue, F_SETLKW, &fl)
@@ -109,7 +109,7 @@ extension Kernel.Lock.Error {
             _ descriptor: Kernel.Descriptor,
             range: Range,
             kind: Kind
-        ) throws(Error) -> Bool {
+        ) throws(Kernel.Lock.Error) -> Bool {
             var fl = makeFlock(range: range, kind: kind)
 
             let result = fcntl(descriptor.rawValue, F_SETLK, &fl)
@@ -133,7 +133,7 @@ extension Kernel.Lock.Error {
         public static func unlock(
             _ descriptor: Kernel.Descriptor,
             range: Range
-        ) throws(Error) {
+        ) throws(Kernel.Lock.Error) {
             var fl = flock()
             fl.l_type = Int16(F_UNLCK)
             fl.l_whence = Int16(SEEK_SET)
@@ -196,7 +196,7 @@ extension Kernel.Lock.Error {
             _ descriptor: Kernel.Descriptor,
             range: Range,
             kind: Kind
-        ) throws(Error) {
+        ) throws(Kernel.Lock.Error) {
             var overlapped = makeOverlapped(range: range)
             let (lengthLow, lengthHigh) = lockLength(range: range)
 
@@ -230,7 +230,7 @@ extension Kernel.Lock.Error {
             _ descriptor: Kernel.Descriptor,
             range: Range,
             kind: Kind
-        ) throws(Error) -> Bool {
+        ) throws(Kernel.Lock.Error) -> Bool {
             var overlapped = makeOverlapped(range: range)
             let (lengthLow, lengthHigh) = lockLength(range: range)
 
@@ -268,7 +268,7 @@ extension Kernel.Lock.Error {
         public static func unlock(
             _ descriptor: Kernel.Descriptor,
             range: Range
-        ) throws(Error) {
+        ) throws(Kernel.Lock.Error) {
             var overlapped = makeOverlapped(range: range)
             let (lengthLow, lengthHigh) = lockLength(range: range)
 

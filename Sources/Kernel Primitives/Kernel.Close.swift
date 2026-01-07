@@ -28,7 +28,7 @@ extension Kernel {
     extension Kernel.Close {
         /// Closes a file descriptor.
         @inlinable
-        public static func close(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func close(_ descriptor: Kernel.Descriptor) throws(Kernel.Close.Error) {
             guard descriptor.isValid else {
                 throw .handle(.invalid)
             }
@@ -52,7 +52,7 @@ extension Kernel {
     extension Kernel.Close {
         /// Closes a file handle.
         @inlinable
-        public static func close(_ descriptor: Kernel.Descriptor) throws(Error) {
+        public static func close(_ descriptor: Kernel.Descriptor) throws(Kernel.Close.Error) {
             guard descriptor.isValid else {
                 throw .handle(.invalid)
             }

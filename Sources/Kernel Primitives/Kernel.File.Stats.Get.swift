@@ -29,7 +29,7 @@ extension Kernel.File.Stats {
     /// - Parameter descriptor: The file descriptor to stat.
     /// - Returns: File metadata.
     /// - Throws: `Kernel.File.Stats.Error` if the syscall fails.
-    public static func get(descriptor: Kernel.Descriptor) throws(Error) -> Kernel.File.Stats {
+    public static func get(descriptor: Kernel.Descriptor) throws(Kernel.File.Stats.Error) -> Kernel.File.Stats {
         #if os(Windows)
             return try getWindows(descriptor)
         #else
@@ -46,7 +46,7 @@ extension Kernel.File.Stats {
     internal typealias PlatformStat = stat
 
     extension Kernel.File.Stats {
-        internal static func getPosix(_ descriptor: Kernel.Descriptor) throws(Error) -> Kernel.File.Stats {
+        internal static func getPosix(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Stats.Error) -> Kernel.File.Stats {
             var sb = PlatformStat()
             guard fstat(descriptor.rawValue, &sb) == 0 else {
                 throw Error(posixErrno: errno)
@@ -132,7 +132,7 @@ extension Kernel.File.Stats {
 #if os(Windows)
 
     extension Kernel.File.Stats {
-        internal static func getWindows(_ descriptor: Kernel.Descriptor) throws(Error) -> Kernel.File.Stats {
+        internal static func getWindows(_ descriptor: Kernel.Descriptor) throws(Kernel.File.Stats.Error) -> Kernel.File.Stats {
             var info = BY_HANDLE_FILE_INFORMATION()
             guard GetFileInformationByHandle(descriptor.rawValue, &info) else {
                 throw Error(windowsError: GetLastError())

@@ -19,6 +19,8 @@
 // require a type that references `each S`. Since `Kernel.Path` is a fixed type,
 // we provide fixed-arity overloads for the common cases (1, 2, and 3 paths).
 
+public import Kernel_Primitives
+
 // MARK: - String Namespace
 
 extension Kernel.Path {

@@ -36,7 +36,7 @@ extension Kernel.File {
             mode: Kernel.File.Open.Mode,
             options: Kernel.File.Open.Options,
             permissions: Kernel.File.Permissions
-        ) throws(Error) -> Kernel.Descriptor {
+        ) throws(Kernel.File.Open.Error) -> Kernel.Descriptor {
             try open(unsafePath: path.unsafeCString, mode: mode, options: options, permissions: permissions)
         }
 
@@ -47,7 +47,7 @@ extension Kernel.File {
             mode: Kernel.File.Open.Mode,
             options: Kernel.File.Open.Options,
             permissions: Kernel.File.Permissions
-        ) throws(Error) -> Kernel.Descriptor {
+        ) throws(Kernel.File.Open.Error) -> Kernel.Descriptor {
             let flags = mode.posixFlags | options.posixFlags
 
             let fd: Int32
@@ -100,7 +100,7 @@ extension Kernel.File {
             mode: Kernel.File.Open.Mode,
             options: Kernel.File.Open.Options,
             permissions: Kernel.File.Permissions
-        ) throws(Error) -> Kernel.Descriptor {
+        ) throws(Kernel.File.Open.Error) -> Kernel.Descriptor {
             try open(unsafePath: path.unsafeCString, mode: mode, options: options, permissions: permissions)
         }
 
@@ -111,7 +111,7 @@ extension Kernel.File {
             mode: Kernel.File.Open.Mode,
             options: Kernel.File.Open.Options,
             permissions: Kernel.File.Permissions
-        ) throws(Error) -> Kernel.Descriptor {
+        ) throws(Kernel.File.Open.Error) -> Kernel.Descriptor {
             let desiredAccess = mode.windowsDesiredAccess(options: options)
             let creationDisposition = options.windowsCreationDisposition
             let flagsAndAttributes = options.windowsFlagsAndAttributes
