@@ -14,6 +14,7 @@ import Testing
 
 #if canImport(Glibc)
     import Glibc
+    import CLinuxShim
 #endif
 
 @testable import Kernel_Primitives
