@@ -147,7 +147,10 @@ extension Kernel.Thread.Mutex.Test.Unit {
 // These tests use KernelThreadTest.Harness to coordinate between threads
 // without data races or cross-thread mutex unlock.
 
-#if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
+// NOTE: These tests use Darwin-specific pthread API.
+// Linux pthread API differs (non-optional pthread_t, different closure signature).
+// TODO: Add Linux-compatible threading tests to swift-linux package.
+#if canImport(Darwin)
 
     extension Kernel.Thread.Mutex.Test.Unit {
         @Test("tryLock returns false when held by another thread")

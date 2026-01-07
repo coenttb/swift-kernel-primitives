@@ -12,6 +12,10 @@
 import StandardsTestSupport
 import Testing
 
+#if canImport(Glibc)
+    import Glibc
+#endif
+
 @testable import Kernel_Primitives
 
 extension Kernel.File.Open.Options {

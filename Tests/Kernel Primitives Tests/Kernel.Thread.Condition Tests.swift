@@ -123,7 +123,10 @@ extension Kernel.Thread.Condition.Test.Unit {
 // These tests use KernelThreadTest.Harness to coordinate between threads
 // without data races or timing-based assertions.
 
-#if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
+// NOTE: These tests use Darwin-specific pthread API.
+// Linux pthread API differs (non-optional pthread_t, different closure signature).
+// TODO: Add Linux-compatible threading tests to swift-linux package.
+#if canImport(Darwin)
 
     extension Kernel.Thread.Condition.Test.Unit {
         @Test("signal wakes waiting thread")
