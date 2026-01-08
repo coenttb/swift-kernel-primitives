@@ -12,8 +12,10 @@
 extension Kernel.Memory {
     /// Raw page locking syscall wrappers.
     ///
-    /// Provides policy-free access to mlock, munlock, mlockall, munlockall.
-    /// Higher layers (swift-memory) build convenience and error translation on top.
+    /// Provides policy-free access to mlock/munlock (cross-platform) and
+    /// VirtualLock/VirtualUnlock (Windows).
+    ///
+    /// For mlockall/munlockall (POSIX-only), see `POSIX.Kernel.Memory.Lock` in swift-posix.
     public enum Lock {}
 }
 
@@ -55,27 +57,6 @@ extension Kernel.Memory {
                 throw .unlock(.captureErrno())
             }
         }
-
-        /// Locks all current and/or future pages in the process address space.
-        ///
-        /// - Parameter flags: Combination of MCL_CURRENT, MCL_FUTURE, and MCL_ONFAULT (Linux).
-        /// - Throws: `Error.lockAll` on failure.
-        @inlinable
-        public static func lockAll(flags: Int32) throws(Error) {
-            guard mlockall(flags) == 0 else {
-                throw .lockAll(.captureErrno())
-            }
-        }
-
-        /// Unlocks all pages in the process address space.
-        ///
-        /// - Throws: `Error.unlockAll` on failure.
-        @inlinable
-        public static func unlockAll() throws(Error) {
-            guard munlockall() == 0 else {
-                throw .unlockAll(.captureErrno())
-            }
-        }
     }
 
 #endif
@@ -110,9 +91,6 @@ extension Kernel.Memory {
                 throw .unlock(.captureLastError())
             }
         }
-
-        // Note: Windows has no mlockall/munlockall equivalent.
-        // VirtualLock locks individual regions, not the entire process address space.
     }
 
 #endif

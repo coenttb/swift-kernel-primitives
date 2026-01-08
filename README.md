@@ -78,19 +78,22 @@ print("Size: \(stats.size) bytes, Type: \(stats.type)")
 
 | Type | Description |
 |------|-------------|
-| `Kernel.Descriptor` | Platform file descriptor (POSIX `int` / Windows `HANDLE`) |
+| `Kernel.Descriptor` | Platform file descriptor (`int` / `HANDLE`) |
 | `Kernel.File.Open` | File open operations with mode, options, permissions |
 | `Kernel.File.Handle` | RAII wrapper with Direct I/O support and alignment tracking |
 | `Kernel.File.Stats` | Cross-platform file metadata (size, type, times, permissions) |
-| `Kernel.IO.Read` | Positional (`pread`) and sequential (`read`) operations |
-| `Kernel.IO.Write` | Positional (`pwrite`) and sequential (`write`) operations |
+| `Kernel.IO.Read` | Positional and sequential read operations |
+| `Kernel.IO.Write` | Positional and sequential write operations |
 | `Kernel.Memory.Map` | Memory-mapped I/O with protection and sync flags |
-| `Kernel.Memory.Shared` | POSIX shared memory (`shm_open`) / Windows file mappings |
+| `Kernel.Memory.Lock` | Page locking (`mlock` / `VirtualLock`) |
 | `Kernel.Pipe` | Anonymous pipe creation |
-| `Kernel.Socket` | Socket operations and socket pairs |
-| `Kernel.Thread.Mutex` | Low-level mutex (`pthread_mutex_t` / `SRWLOCK`) |
-| `Kernel.Lock` | File locking (`flock` / `LockFileEx`) |
+| `Kernel.Socket` | Socket operations (see swift-posix for socket pairs) |
+| `Kernel.Thread.Mutex` | Low-level mutex |
+| `Kernel.Lock` | File locking |
 | `Kernel.Copy` | Kernel-accelerated file copy with CoW support |
+| `Kernel.Device` | Device identifier (see swift-posix for major/minor) |
+
+> **Note:** POSIX-specific APIs (`mlockall`, `socketpair`, device major/minor) are in [swift-posix](https://github.com/coenttb/swift-posix).
 
 ---
 

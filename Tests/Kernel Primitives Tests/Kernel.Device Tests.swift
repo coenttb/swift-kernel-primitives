@@ -77,47 +77,6 @@ extension Kernel.Device.Test.Unit {
     }
 }
 
-// MARK: - Major/Minor Tests (POSIX only)
-
-#if !os(Windows)
-    extension Kernel.Device.Test.Unit {
-        @Test("Device major/minor extraction")
-        func majorMinorExtraction() {
-            // Create a device with known major/minor
-            let device = Kernel.Device(major: 8, minor: 1)
-            #expect(device.major == 8)
-            #expect(device.minor == 1)
-        }
-
-        @Test("Device major/minor roundtrip")
-        func majorMinorRoundtrip() {
-            let major: UInt32 = 253
-            let minor: UInt32 = 42
-            let device = Kernel.Device(major: major, minor: minor)
-            #expect(device.major == major)
-            #expect(device.minor == minor)
-        }
-    }
-#endif
-
-// MARK: - CustomStringConvertible Tests
-
-extension Kernel.Device.Test.Unit {
-    @Test("Device description is not empty")
-    func descriptionNotEmpty() {
-        let device = Kernel.Device(100)
-        #expect(!device.description.isEmpty)
-    }
-
-    #if !os(Windows)
-        @Test("Device description contains colon")
-        func descriptionContainsColon() {
-            let device = Kernel.Device(major: 8, minor: 1)
-            #expect(device.description.contains(":"))
-        }
-    #endif
-}
-
 // MARK: - Edge Cases
 
 extension Kernel.Device.Test.EdgeCase {
