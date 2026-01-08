@@ -169,7 +169,7 @@ extension Kernel.File.System {
                     availableBlocks: Kernel.File.System.Block.Count(UInt64(buf.f_bavail)),
                     files: Kernel.File.System.File.Count(UInt64(buf.f_files)),
                     freeFiles: Kernel.File.System.File.Count(UInt64(buf.f_ffree)),
-                    fsid: Kernel.File.System.ID(UInt64(buf.f_fsid.val.0) | (UInt64(buf.f_fsid.val.1) << 32)),
+                    fsid: Kernel.File.System.ID(UInt64(UInt32(bitPattern: buf.f_fsid.val.0)) | (UInt64(UInt32(bitPattern: buf.f_fsid.val.1)) << 32)),
                     nameMax: Kernel.File.System.Name.Length(UInt64(NAME_MAX)),
                     fsTypeName: withUnsafeBytes(of: buf.f_fstypename) { ptr in
                         String(cString: ptr.baseAddress!.assumingMemoryBound(to: CChar.self))
@@ -178,14 +178,14 @@ extension Kernel.File.System {
             #else
                 self.init(
                     type: Kernel.File.System.Kind(UInt64(bitPattern: Int64(buf.f_type))),
-                    blockSize: Kernel.File.System.Block.Size(UInt64(buf.f_bsize)),
+                    blockSize: Kernel.File.System.Block.Size(UInt64(bitPattern: Int64(buf.f_bsize))),
                     blocks: Kernel.File.System.Block.Count(UInt64(buf.f_blocks)),
                     freeBlocks: Kernel.File.System.Block.Count(UInt64(buf.f_bfree)),
                     availableBlocks: Kernel.File.System.Block.Count(UInt64(buf.f_bavail)),
                     files: Kernel.File.System.File.Count(UInt64(buf.f_files)),
                     freeFiles: Kernel.File.System.File.Count(UInt64(buf.f_ffree)),
-                    fsid: Kernel.File.System.ID(UInt64(buf.f_fsid.__val.0) | (UInt64(buf.f_fsid.__val.1) << 32)),
-                    nameMax: Kernel.File.System.Name.Length(UInt64(buf.f_namelen)),
+                    fsid: Kernel.File.System.ID(UInt64(UInt32(bitPattern: buf.f_fsid.__val.0)) | (UInt64(UInt32(bitPattern: buf.f_fsid.__val.1)) << 32)),
+                    nameMax: Kernel.File.System.Name.Length(UInt64(bitPattern: Int64(buf.f_namelen))),
                     fsTypeName: nil
                 )
             #endif
