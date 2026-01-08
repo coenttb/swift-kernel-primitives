@@ -215,22 +215,42 @@ import Testing
         }
     }
 
-    // MARK: - Error.Unmapped Tests
+    // MARK: - Kernel.Error Tests
 
-    @Suite("Error.Unmapped Mapping")
-    struct ErrorUnmappedMappingTests {
-        @Test("creates platform error from errno")
+    @Suite("Kernel.Error")
+    struct KernelErrorTests {
+        @Test("creates error from errno code")
         func fromErrno() {
-            let error = Kernel.Error.Unmapped.Error(code: .posix(EINTR))
-            if case .unmapped(let code, _) = error {
-                if case .posix(let value) = code {
-                    #expect(value == EINTR)
-                } else {
-                    Issue.record("Expected .posix code")
-                }
+            let error = Kernel.Error(code: .posix(EINTR))
+            if case .posix(let value) = error.code {
+                #expect(value == EINTR)
             } else {
-                Issue.record("Expected .unmapped case")
+                Issue.record("Expected .posix code")
             }
+        }
+
+        @Test("error is Sendable")
+        func isSendable() {
+            let error: any Sendable = Kernel.Error(code: .posix(EINTR))
+            #expect(error is Kernel.Error)
+        }
+
+        @Test("error is Equatable")
+        func isEquatable() {
+            let a = Kernel.Error(code: .posix(EINTR))
+            let b = Kernel.Error(code: .posix(EINTR))
+            let c = Kernel.Error(code: .posix(ENOENT))
+            #expect(a == b)
+            #expect(a != c)
+        }
+
+        @Test("error is Hashable")
+        func isHashable() {
+            var set = Set<Kernel.Error>()
+            set.insert(Kernel.Error(code: .posix(1)))
+            set.insert(Kernel.Error(code: .posix(2)))
+            set.insert(Kernel.Error(code: .posix(1)))  // duplicate
+            #expect(set.count == 2)
         }
     }
 

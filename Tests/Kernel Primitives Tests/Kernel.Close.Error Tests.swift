@@ -43,13 +43,13 @@ extension Kernel.Close.Error.Test.Unit {
         }
     }
 
-    @Test("platform case stores Errno.Unmapped.Error")
+    @Test("platform case stores Kernel.Error")
     func platformCase() {
         let code = Kernel.Error.Code.posix(999)
-        let unmappedError = Kernel.Error.Unmapped.Error.unmapped(code: code, message: "test")
-        let error = Kernel.Close.Error.platform(unmappedError)
+        let platformError = Kernel.Error(code: code)
+        let error = Kernel.Close.Error.platform(platformError)
         if case .platform(let stored) = error {
-            #expect(stored == unmappedError)
+            #expect(stored == platformError)
         } else {
             Issue.record("Expected .platform case")
         }
@@ -117,7 +117,7 @@ extension Kernel.Close.Error.Test.EdgeCase {
         let cases: [Kernel.Close.Error] = [
             .handle(.invalid),
             .io(.broken),
-            .platform(.unmapped(code: .posix(1), message: nil)),
+            .platform(Kernel.Error(code: .posix(1))),
         ]
 
         for i in 0..<cases.count {

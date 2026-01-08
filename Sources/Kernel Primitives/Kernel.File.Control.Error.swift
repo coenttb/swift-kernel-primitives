@@ -13,7 +13,7 @@ extension Kernel.File.Control {
     public enum Error: Swift.Error, Sendable {
         case handle(Kernel.Descriptor.Validity.Error)
         case io(Kernel.IO.Error)
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -51,7 +51,7 @@ extension Kernel.File.Control.Error {
             self = .io(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @usableFromInline

@@ -74,7 +74,7 @@ extension Kernel.File.System.Stats.Error.Test.Unit {
     @Test("platform case exists")
     func platformCase() {
         let code = Kernel.Error.Code.posix(999)
-        let unmapped = Kernel.Error.Unmapped.Error.unmapped(code: code, message: nil)
+        let unmapped = Kernel.Error(code: code)
         let error = Kernel.File.System.Stats.Error.platform(unmapped)
         if case .platform = error {
             // Expected
@@ -155,7 +155,7 @@ extension Kernel.File.System.Stats.Error.Test.EdgeCase {
     @Test("all cases are distinct")
     func allCasesDistinct() {
         let code = Kernel.Error.Code.posix(999)
-        let unmapped = Kernel.Error.Unmapped.Error.unmapped(code: code, message: nil)
+        let unmapped = Kernel.Error(code: code)
 
         let cases: [Kernel.File.System.Stats.Error] = [
             .path(.notFound),
@@ -197,7 +197,7 @@ extension Kernel.File.System.Stats.Error.Test.EdgeCase {
     @Test("all descriptions are non-empty")
     func allDescriptionsNonEmpty() {
         let code = Kernel.Error.Code.posix(999)
-        let unmapped = Kernel.Error.Unmapped.Error.unmapped(code: code, message: nil)
+        let unmapped = Kernel.Error(code: code)
 
         let cases: [Kernel.File.System.Stats.Error] = [
             .path(.notFound),

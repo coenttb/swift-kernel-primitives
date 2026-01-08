@@ -139,15 +139,6 @@
         }
     }
 
-    // MARK: - Platform (catch-all)
-
-    extension Kernel.Error.Unmapped.Error {
-        /// Creates a platform error from an error code.
-        public init(code: Kernel.Error.Code) {
-            self = .unmapped(code: code, message: nil)
-        }
-    }
-
 #endif
 
 // MARK: - Windows Error Mapping
@@ -236,13 +227,6 @@
             case ERROR_LOCK_VIOLATION: self = .contention
             default: return nil
             }
-        }
-    }
-
-    extension Kernel.Error.Unmapped.Error {
-        /// Creates a platform error from an error code.
-        public init(code: Kernel.Error.Code) {
-            self = .unmapped(code: code, message: nil)
         }
     }
 

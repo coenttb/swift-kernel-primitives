@@ -17,7 +17,7 @@ extension Kernel.IO.Write {
         case io(Kernel.IO.Error)
         case space(Kernel.Storage.Error)
         case memory(Kernel.Memory.Error)
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -77,7 +77,7 @@ extension Kernel.IO.Write.Error {
             self = .memory(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @usableFromInline

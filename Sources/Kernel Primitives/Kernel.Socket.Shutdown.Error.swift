@@ -19,7 +19,7 @@ extension Kernel.Socket.Shutdown {
         case io(Kernel.IO.Error)
 
         /// A platform-specific error.
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -61,7 +61,7 @@ extension Kernel.Socket.Shutdown.Error {
             self = .io(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @usableFromInline

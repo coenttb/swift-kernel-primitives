@@ -16,7 +16,7 @@ extension Kernel.File.Open {
         case handle(Kernel.Descriptor.Validity.Error)
         case space(Kernel.Storage.Error)
         case io(Kernel.IO.Error)
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -72,7 +72,7 @@ extension Kernel.File.Open.Error {
             self = .io(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @usableFromInline

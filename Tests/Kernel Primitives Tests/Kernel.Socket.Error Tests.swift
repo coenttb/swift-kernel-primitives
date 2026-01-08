@@ -39,7 +39,7 @@ extension Kernel.Socket.Error.Test.Unit {
 
     @Test("platform case exists")
     func platformCase() {
-        let platformError = Kernel.Error.Unmapped.Error.unmapped(code: .posix(999), message: nil)
+        let platformError = Kernel.Error(code: .posix(999))
         let error = Kernel.Socket.Error.platform(platformError)
         if case .platform(let e) = error {
             #expect(e == platformError)
@@ -68,7 +68,7 @@ extension Kernel.Socket.Error.Test.Unit {
     func isEquatable() {
         let a = Kernel.Socket.Error.handle(.invalid)
         let b = Kernel.Socket.Error.handle(.invalid)
-        let c = Kernel.Socket.Error.platform(.unmapped(code: .posix(1), message: nil))
+        let c = Kernel.Socket.Error.platform(Kernel.Error(code: .posix(1)))
         #expect(a == b)
         #expect(a != c)
     }
@@ -85,7 +85,7 @@ extension Kernel.Socket.Error.Test.Unit {
 
     @Test("platform error description")
     func platformDescription() {
-        let platformError = Kernel.Error.Unmapped.Error.unmapped(code: .posix(42), message: nil)
+        let platformError = Kernel.Error(code: .posix(42))
         let error = Kernel.Socket.Error.platform(platformError)
         #expect(!error.description.isEmpty)
     }
@@ -98,7 +98,7 @@ extension Kernel.Socket.Error.Test.EdgeCase {
     func differentCasesNotEqual() {
         let handleError = Kernel.Socket.Error.handle(.invalid)
         let platformError = Kernel.Socket.Error.platform(
-            .unmapped(code: .posix(1), message: nil)
+            Kernel.Error(code: .posix(1))
         )
         #expect(handleError != platformError)
     }

@@ -76,10 +76,10 @@ extension Kernel.IO.Write.Error.Test.Unit {
         }
     }
 
-    @Test("platform case stores Errno.Unmapped.Error")
+    @Test("platform case stores Kernel.Error")
     func platformCase() {
         let code = Kernel.Error.Code.posix(999)
-        let unmappedError = Kernel.Error.Unmapped.Error.unmapped(code: code, message: nil)
+        let unmappedError = Kernel.Error(code: code)
         let error = Kernel.IO.Write.Error.platform(unmappedError)
         if case .platform(let stored) = error {
             #expect(stored == unmappedError)
@@ -159,7 +159,7 @@ extension Kernel.IO.Write.Error.Test.EdgeCase {
             .io(.broken),
             .space(.exhausted),
             .memory(.fault),
-            .platform(.unmapped(code: .posix(1), message: nil)),
+            .platform(Kernel.Error(code: .posix(1))),
         ]
 
         for i in 0..<cases.count {

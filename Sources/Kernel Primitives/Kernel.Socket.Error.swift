@@ -16,7 +16,7 @@ extension Kernel.Socket {
         case handle(Kernel.Descriptor.Validity.Error)
 
         /// A platform-specific error.
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -52,7 +52,7 @@ extension Kernel.Socket.Error {
             self = .handle(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @inlinable

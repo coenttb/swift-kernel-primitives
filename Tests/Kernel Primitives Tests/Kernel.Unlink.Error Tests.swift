@@ -61,7 +61,7 @@ extension Kernel.Unlink.Error.Test.Unit {
 
     @Test("platform case exists")
     func platformCase() {
-        let platformError = Kernel.Error.Unmapped.Error.unmapped(code: .posix(999), message: nil)
+        let platformError = Kernel.Error(code: .posix(999))
         let error = Kernel.Unlink.Error.platform(platformError)
         if case .platform(let e) = error {
             #expect(e == platformError)

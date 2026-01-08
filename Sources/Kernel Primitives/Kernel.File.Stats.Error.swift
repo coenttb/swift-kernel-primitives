@@ -19,7 +19,7 @@ extension Kernel.File.Stats {
         case io(Kernel.IO.Error)
 
         /// A platform-specific error that doesn't map to a semantic case.
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 

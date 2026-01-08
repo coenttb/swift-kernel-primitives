@@ -17,7 +17,7 @@ extension Kernel.File.System.Stats {
         case permission(Kernel.Permission.Error)
         case memory(Kernel.Memory.Error)
         case io(Kernel.IO.Error)
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -59,7 +59,7 @@ extension Kernel.File.System.Stats.Error {
             self = .io(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @usableFromInline

@@ -15,7 +15,7 @@ extension Kernel.Unlink {
         case path(Kernel.Path.Resolution.Error)
         case permission(Kernel.Permission.Error)
         case io(Kernel.IO.Error)
-        case platform(Kernel.Error.Unmapped.Error)
+        case platform(Kernel.Error)
     }
 }
 
@@ -63,7 +63,7 @@ extension Kernel.Unlink.Error {
             self = .io(e)
             return
         }
-        self = .platform(Kernel.Error.Unmapped.Error(code: code))
+        self = .platform(Kernel.Error(code: code))
     }
 
     @inlinable

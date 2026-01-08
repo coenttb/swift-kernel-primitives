@@ -67,7 +67,7 @@ extension Kernel.File.Stats {
                 self = .io(e)
                 return
             }
-            self = .platform(Kernel.Error.Unmapped.Error(code: errorCode))
+            self = .platform(Kernel.Error(code: errorCode))
         }
     }
 
@@ -189,7 +189,7 @@ extension Kernel.File.Stats {
                 self = .io(e)
                 return
             }
-            self = .platform(Kernel.Error.Unmapped.Error(code: errorCode))
+            self = .platform(Kernel.Error(code: errorCode))
         }
     }
 

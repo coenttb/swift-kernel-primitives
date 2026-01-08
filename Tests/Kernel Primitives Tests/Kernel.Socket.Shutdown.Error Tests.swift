@@ -50,7 +50,7 @@ extension Kernel.Socket.Shutdown.Error.Test.Unit {
 
     @Test("platform case exists")
     func platformCase() {
-        let platformError = Kernel.Error.Unmapped.Error.unmapped(code: .posix(999), message: nil)
+        let platformError = Kernel.Error(code: .posix(999))
         let error = Kernel.Socket.Shutdown.Error.platform(platformError)
         if case .platform(let e) = error {
             #expect(e == platformError)
@@ -102,7 +102,7 @@ extension Kernel.Socket.Shutdown.Error.Test.Unit {
 
     @Test("platform error description")
     func platformDescription() {
-        let platformError = Kernel.Error.Unmapped.Error.unmapped(code: .posix(42), message: nil)
+        let platformError = Kernel.Error(code: .posix(42))
         let error = Kernel.Socket.Shutdown.Error.platform(platformError)
         #expect(!error.description.isEmpty)
     }
@@ -116,7 +116,7 @@ extension Kernel.Socket.Shutdown.Error.Test.EdgeCase {
         let handleError = Kernel.Socket.Shutdown.Error.handle(.invalid)
         let ioError = Kernel.Socket.Shutdown.Error.io(.broken)
         let platformError = Kernel.Socket.Shutdown.Error.platform(
-            .unmapped(code: .posix(1), message: nil)
+            Kernel.Error(code: .posix(1))
         )
         #expect(handleError != ioError)
         #expect(handleError != platformError)

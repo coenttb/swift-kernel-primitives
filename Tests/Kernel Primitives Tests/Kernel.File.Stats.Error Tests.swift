@@ -43,10 +43,10 @@ extension Kernel.File.Stats.Error.Test.Unit {
         }
     }
 
-    @Test("platform case stores Errno.Unmapped.Error")
+    @Test("platform case stores Kernel.Error")
     func platformCase() {
         let code = Kernel.Error.Code.posix(999)
-        let unmappedError = Kernel.Error.Unmapped.Error.unmapped(code: code, message: nil)
+        let unmappedError = Kernel.Error(code: code)
         let error = Kernel.File.Stats.Error.platform(unmappedError)
         if case .platform(let stored) = error {
             #expect(stored == unmappedError)
@@ -105,7 +105,7 @@ extension Kernel.File.Stats.Error.Test.EdgeCase {
         let cases: [Kernel.File.Stats.Error] = [
             .handle(.invalid),
             .io(.hardware),
-            .platform(.unmapped(code: .posix(1), message: nil)),
+            .platform(Kernel.Error(code: .posix(1))),
         ]
 
         for i in 0..<cases.count {
