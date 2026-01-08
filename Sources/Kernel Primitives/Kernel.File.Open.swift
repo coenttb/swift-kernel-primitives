@@ -10,7 +10,16 @@
 // ===----------------------------------------------------------------------===//
 
 extension Kernel.File {
-    /// Types and options for opening files.
+    /// File open operations and configuration types.
+    ///
+    /// Provides the fundamental `open()` syscall for creating or opening files.
+    /// Returns a raw ``Kernel/Descriptor`` that must be closed explicitly via
+    /// ``Kernel/Close/close(_:)``.
+    ///
+    /// ## See Also
+    /// - ``Kernel/File/Open/Mode``
+    /// - ``Kernel/File/Open/Options``
+    /// - ``Kernel/File/Permissions``
     public struct Open {
 
     }
@@ -30,6 +39,30 @@ extension Kernel.File {
 
     extension Kernel.File.Open {
         /// Opens a file at the specified path.
+        ///
+        /// ## Threading
+        /// This call blocks until the open completes. The open syscall may block
+        /// on networked filesystems or when opening FIFOs/device files.
+        ///
+        /// ## Descriptor Ownership
+        /// The caller receives ownership of the returned descriptor and must close it
+        /// explicitly via ``Kernel/Close/close(_:)``. Failing to close leaks the
+        /// kernel resource until process termination.
+        ///
+        /// ## Errors
+        /// - ``Error/notFound``: Path does not exist and `.create` not specified
+        /// - ``Error/exists``: Path exists and `.exclusive` was specified
+        /// - ``Error/permission``: Insufficient permissions for requested mode
+        /// - ``Error/isDirectory``: Cannot open directory with write mode
+        /// - ``Error/tooManyOpen``: Process or system descriptor limit reached
+        ///
+        /// - Parameters:
+        ///   - path: The file path to open.
+        ///   - mode: Read/write access mode.
+        ///   - options: Creation and behavior options.
+        ///   - permissions: POSIX permissions for newly created files.
+        /// - Returns: A file descriptor for the opened file.
+        /// - Throws: ``Kernel/File/Open/Error`` on failure.
         @inlinable
         public static func open(
             path: borrowing Kernel.Path,
@@ -40,7 +73,18 @@ extension Kernel.File {
             try open(unsafePath: path.unsafeCString, mode: mode, options: options, permissions: permissions)
         }
 
-        /// Opens a file at the specified path.
+        /// Opens a file at the specified path using an unsafe C string pointer.
+        ///
+        /// This is the low-level variant for callers that already have a null-terminated
+        /// path string. Prefer ``open(path:mode:options:permissions:)`` when possible.
+        ///
+        /// - Parameters:
+        ///   - unsafePath: Null-terminated path string. Must remain valid for the call duration.
+        ///   - mode: Read/write access mode.
+        ///   - options: Creation and behavior options.
+        ///   - permissions: POSIX permissions for newly created files.
+        /// - Returns: A file descriptor for the opened file.
+        /// - Throws: ``Kernel/File/Open/Error`` on failure.
         @inlinable
         public static func open(
             unsafePath: UnsafePointer<Kernel.Path.Char>,
@@ -94,6 +138,30 @@ extension Kernel.File {
 
     extension Kernel.File.Open {
         /// Opens a file at the specified path.
+        ///
+        /// ## Threading
+        /// This call blocks until the open completes. CreateFileW may block
+        /// on networked paths or when opening device files.
+        ///
+        /// ## Handle Ownership
+        /// The caller receives ownership of the returned handle and must close it
+        /// explicitly via ``Kernel/Close/close(_:)``. Failing to close leaks the
+        /// kernel resource until process termination.
+        ///
+        /// ## Errors
+        /// - ``Error/notFound``: Path does not exist and `.create` not specified
+        /// - ``Error/exists``: Path exists and `.exclusive` was specified
+        /// - ``Error/permission``: Access denied for requested mode
+        /// - ``Error/isDirectory``: Cannot open directory with write mode
+        /// - ``Error/tooManyOpen``: System handle limit reached
+        ///
+        /// - Parameters:
+        ///   - path: The file path to open.
+        ///   - mode: Read/write access mode.
+        ///   - options: Creation and behavior options.
+        ///   - permissions: Ignored on Windows (permissions are ACL-based).
+        /// - Returns: A file handle for the opened file.
+        /// - Throws: ``Kernel/File/Open/Error`` on failure.
         @inlinable
         public static func open(
             path: borrowing Kernel.Path,
@@ -104,7 +172,18 @@ extension Kernel.File {
             try open(unsafePath: path.unsafeCString, mode: mode, options: options, permissions: permissions)
         }
 
-        /// Opens a file at the specified path (Windows wide string).
+        /// Opens a file at the specified path using an unsafe wide string pointer.
+        ///
+        /// This is the low-level variant for callers that already have a null-terminated
+        /// UTF-16 path string. Prefer ``open(path:mode:options:permissions:)`` when possible.
+        ///
+        /// - Parameters:
+        ///   - unsafePath: Null-terminated UTF-16 path string. Must remain valid for the call duration.
+        ///   - mode: Read/write access mode.
+        ///   - options: Creation and behavior options.
+        ///   - permissions: Ignored on Windows (permissions are ACL-based).
+        /// - Returns: A file handle for the opened file.
+        /// - Throws: ``Kernel/File/Open/Error`` on failure.
         @inlinable
         public static func open(
             unsafePath: UnsafePointer<Kernel.Path.Char>,

@@ -19,7 +19,10 @@
     #endif
 
     extension Kernel.Copy {
-        /// Range-based copy operations using copy_file_range(2).
+        /// Range-based copy operations using copy_file_range(2) (Linux).
+        ///
+        /// Enables efficient kernel-space copying between file descriptors,
+        /// potentially using server-side copy for network filesystems.
         public enum Range {
 
         }
@@ -30,17 +33,37 @@
     extension Kernel.Copy.Range {
         /// Copies bytes between file descriptors using copy_file_range(2).
         ///
-        /// This is a Linux-specific syscall that can perform efficient
-        /// server-side copies on supported filesystems (e.g., NFS, Btrfs).
+        /// This Linux-specific syscall performs efficient kernel-space copying,
+        /// avoiding unnecessary data transfer to userspace. On supported filesystems,
+        /// it may use copy-on-write or server-side copy.
+        ///
+        /// ## Threading
+        /// This call blocks until at least some bytes are copied or an error occurs.
+        /// May copy fewer bytes than requested (similar to read/write). Safe to call
+        /// concurrently if operating on non-overlapping regions.
+        ///
+        /// ## Filesystem Support
+        /// - **NFS**: Server-side copy (data doesn't traverse network twice)
+        /// - **Btrfs/XFS**: May use reflinks for same-filesystem copies
+        /// - **Other**: Falls back to efficient kernel-space copy
+        ///
+        /// ## Partial Copies
+        /// May return fewer bytes than `length`. This is not an error—loop until
+        /// all data is copied or the source is exhausted (returns 0).
+        ///
+        /// ## Errors
+        /// - ``Kernel/Copy/Error/invalidDescriptor``: Source or destination is invalid
+        /// - ``Kernel/Copy/Error/crossDevice``: Offload not supported across devices
+        /// - ``Kernel/Copy/Error/io``: I/O error during copy
         ///
         /// - Parameters:
-        ///   - source: Source file descriptor.
+        ///   - source: Source file descriptor (open for reading).
         ///   - sourceOffset: Offset in source file (updated on return).
-        ///   - destination: Destination file descriptor.
+        ///   - destination: Destination file descriptor (open for writing).
         ///   - destOffset: Offset in destination file (updated on return).
         ///   - length: Maximum number of bytes to copy.
-        /// - Returns: Number of bytes copied.
-        /// - Throws: `Kernel.Copy.Error` on failure.
+        /// - Returns: Number of bytes copied (may be less than `length`).
+        /// - Throws: ``Kernel/Copy/Error`` on failure.
         @inlinable
         public static func copy(
             from source: Kernel.Descriptor,

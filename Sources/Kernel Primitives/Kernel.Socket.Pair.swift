@@ -10,7 +10,17 @@
 // ===----------------------------------------------------------------------===//
 
 extension Kernel.Socket {
-    /// Socket pair operations.
+    /// Socket pair operations for bidirectional inter-process communication.
+    ///
+    /// Creates a pair of connected Unix domain sockets. Unlike pipes, socket pairs
+    /// are bidirectional—both ends can read and write. Commonly used for:
+    /// - Full-duplex IPC between related processes
+    /// - Event notification with bidirectional acknowledgment
+    /// - Testing network code without actual network I/O
+    ///
+    /// ## Descriptor Lifecycle
+    /// Both descriptors must be closed explicitly via ``Kernel/Close/close(_:)``.
+    /// Closing one end causes reads on the other to return EOF and writes to fail.
     public enum Pair: Sendable {}
 }
 
@@ -27,13 +37,30 @@ extension Kernel.Socket {
     #endif
 
     extension Kernel.Socket.Pair {
-        /// Creates a connected pair of Unix domain sockets.
+        /// Creates a connected pair of Unix domain stream sockets.
         ///
-        /// Creates two connected sockets that can be used for bidirectional
-        /// communication. Both sockets are stream sockets (SOCK_STREAM).
+        /// Both sockets are `AF_UNIX` / `SOCK_STREAM` and can be used for
+        /// bidirectional communication. Data written to one socket can be read
+        /// from the other, and vice versa.
+        ///
+        /// ## Threading
+        /// The socketpair syscall is atomic and does not block. The returned
+        /// descriptors are created in blocking mode by default.
+        ///
+        /// ## Blocking Behavior
+        /// - **Read**: Blocks until data is available or the peer is closed (EOF)
+        /// - **Write**: Blocks if the socket buffer is full
+        ///
+        /// ## Descriptor Lifecycle
+        /// Both descriptors must be closed explicitly. They are independent—closing
+        /// one does not automatically close the other.
+        ///
+        /// ## Errors
+        /// - ``Error/tooManyOpen``: Process or system descriptor limit reached
+        /// - ``Error/noMemory``: Insufficient kernel memory
         ///
         /// - Returns: A tuple containing two connected socket descriptors.
-        /// - Throws: `Error` on failure.
+        /// - Throws: ``Kernel/Socket/Pair/Error`` on failure.
         @inlinable
         public static func create() throws(Error) -> (Kernel.Socket.Descriptor, Kernel.Socket.Descriptor) {
             var fds: [Int32] = [0, 0]
@@ -61,15 +88,18 @@ extension Kernel.Socket {
     extension Kernel.Socket.Pair {
         /// Creates a connected pair of sockets.
         ///
-        /// - Note: Windows does not have native socketpair. This creates a
-        ///   pair of connected TCP sockets using loopback.
+        /// ## Platform Limitation
+        /// Windows does not have a native `socketpair()` syscall. A full implementation
+        /// would create a TCP loopback listener, connect to it, accept, then close
+        /// the listener. This is not yet implemented.
         ///
-        /// - Returns: A tuple containing two connected socket descriptors.
-        /// - Throws: `Error` on failure.
+        /// ## Errors
+        /// - ``Error/platform(_:)``: Always throws `.unsupported` on Windows
+        ///
+        /// - Returns: Never returns successfully on Windows.
+        /// - Throws: ``Kernel/Socket/Pair/Error`` with `.platform(.unsupported)`.
         @inlinable
         public static func create() throws(Error) -> (Kernel.Socket.Descriptor, Kernel.Socket.Descriptor) {
-            // Windows implementation would use a listener on loopback
-            // and connect to create a socket pair. For now, throw unsupported.
             throw .platform(.unsupported)
         }
     }

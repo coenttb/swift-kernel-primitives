@@ -10,10 +10,19 @@
 // ===----------------------------------------------------------------------===//
 
 extension Kernel.Memory {
-    /// Raw POSIX shared memory syscall wrappers.
+    /// POSIX shared memory and Windows file mapping operations.
     ///
-    /// Provides policy-free access to shm_open and shm_unlink.
-    /// Higher layers (swift-memory) build RAII and convenience on top.
+    /// Provides policy-free access to shared memory primitives:
+    /// - POSIX: `shm_open` / `shm_unlink`
+    /// - Windows: `CreateFileMappingW` / `OpenFileMappingW`
+    ///
+    /// ## Descriptor Lifecycle
+    /// The returned descriptor must be mapped with ``Kernel/Memory/Map/map(_:length:protection:flags:offset:)``
+    /// before use, then unmapped and closed when done.
+    ///
+    /// ## Concurrency
+    /// Shared memory regions require explicit synchronization (mutexes, atomics)
+    /// when accessed concurrently from multiple processes or threads.
     public enum Shared {}
 }
 
@@ -27,13 +36,30 @@ extension Kernel.Memory {
     extension Kernel.Memory.Shared {
         /// Opens or creates a POSIX shared memory object.
         ///
+        /// ## Threading
+        /// This call may block briefly during kernel object creation/lookup.
+        /// The returned descriptor can be used from any thread but requires
+        /// explicit synchronization for the mapped memory region.
+        ///
+        /// ## Descriptor Lifecycle
+        /// 1. Call `open()` to get a descriptor
+        /// 2. Set size with `ftruncate()` if creating
+        /// 3. Map with ``Kernel/Memory/Map/map(_:length:protection:flags:offset:)``
+        /// 4. Use the mapped region (with synchronization)
+        /// 5. Unmap with ``Kernel/Memory/Map/unmap(_:length:)``
+        /// 6. Close with ``Kernel/Close/close(_:)``
+        /// 7. Optionally unlink with ``unlink(name:)``
+        ///
+        /// ## Errors
+        /// - ``Error/open(_:)``: shm_open failed (permission denied, name invalid, etc.)
+        ///
         /// - Parameters:
         ///   - name: The name of the shared memory object (must start with '/').
         ///   - access: Read/write access mode.
         ///   - options: Creation options (create, exclusive, truncate).
         ///   - permissions: Permission mode for creation.
         /// - Returns: A file descriptor for the shared memory object.
-        /// - Throws: `Error.open` on failure.
+        /// - Throws: ``Kernel/Memory/Shared/Error`` on failure.
         @inlinable
         public static func open(
             name: UnsafePointer<CChar>,
@@ -77,13 +103,30 @@ extension Kernel.Memory {
     extension Kernel.Memory.Shared {
         /// Opens or creates a POSIX shared memory object.
         ///
+        /// ## Threading
+        /// This call may block briefly during kernel object creation/lookup.
+        /// The returned descriptor can be used from any thread but requires
+        /// explicit synchronization for the mapped memory region.
+        ///
+        /// ## Descriptor Lifecycle
+        /// 1. Call `open()` to get a descriptor
+        /// 2. Set size with `ftruncate()` if creating
+        /// 3. Map with ``Kernel/Memory/Map/map(_:length:protection:flags:offset:)``
+        /// 4. Use the mapped region (with synchronization)
+        /// 5. Unmap with ``Kernel/Memory/Map/unmap(_:length:)``
+        /// 6. Close with ``Kernel/Close/close(_:)``
+        /// 7. Optionally unlink with ``unlink(name:)``
+        ///
+        /// ## Errors
+        /// - ``Error/open(_:)``: shm_open failed (permission denied, name invalid, etc.)
+        ///
         /// - Parameters:
         ///   - name: The name of the shared memory object (must start with '/').
         ///   - access: Read/write access mode.
         ///   - options: Creation options (create, exclusive, truncate).
         ///   - permissions: Permission mode for creation.
         /// - Returns: A file descriptor for the shared memory object.
-        /// - Throws: `Error.open` on failure.
+        /// - Throws: ``Kernel/Memory/Shared/Error`` on failure.
         @inlinable
         public static func open(
             name: UnsafePointer<CChar>,

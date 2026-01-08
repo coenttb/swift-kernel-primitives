@@ -26,9 +26,21 @@
 extension Kernel.File.Stats {
     /// Gets file metadata for an open file descriptor.
     ///
+    /// Retrieves file size, type, permissions, timestamps, and other metadata
+    /// using fstat (POSIX) or GetFileInformationByHandle (Windows).
+    ///
+    /// ## Threading
+    /// This call may briefly block while reading file metadata. Safe to call
+    /// concurrently from multiple threads on the same descriptor.
+    ///
+    /// ## Errors
+    /// - ``Error/handle(_:)``: Invalid descriptor
+    /// - ``Error/io(_:)``: I/O error reading metadata
+    /// - ``Error/platform(_:)``: Platform-specific error
+    ///
     /// - Parameter descriptor: The file descriptor to stat.
-    /// - Returns: File metadata.
-    /// - Throws: `Kernel.File.Stats.Error` if the syscall fails.
+    /// - Returns: File metadata including size, type, permissions, and timestamps.
+    /// - Throws: ``Kernel/File/Stats/Error`` if the syscall fails.
     public static func get(descriptor: Kernel.Descriptor) throws(Kernel.File.Stats.Error) -> Kernel.File.Stats {
         #if os(Windows)
             return try getWindows(descriptor)

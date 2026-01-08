@@ -10,7 +10,18 @@
 // ===----------------------------------------------------------------------===//
 
 extension Kernel {
-    /// Pipe operations.
+    /// Anonymous pipe operations for inter-process/inter-thread communication.
+    ///
+    /// Creates unidirectional byte streams for communication. Data written to the
+    /// write end can be read from the read end. Pipes are commonly used for:
+    /// - Parent-child process communication
+    /// - Inter-thread signaling
+    /// - Implementing producer-consumer patterns
+    ///
+    /// ## Descriptor Lifecycle
+    /// Both descriptors must be closed explicitly via ``Kernel/Close/close(_:)``.
+    /// Close the write end to signal EOF to readers. Close the read end to cause
+    /// writes to fail with EPIPE/SIGPIPE.
     public enum Pipe: Sendable {}
 }
 
@@ -27,10 +38,27 @@ extension Kernel {
 #if canImport(Darwin) || canImport(Glibc) || canImport(Musl)
 
     extension Kernel.Pipe {
-        /// Creates an anonymous pipe.
+        /// Creates an anonymous pipe returning connected read and write descriptors.
         ///
-        /// - Returns: A tuple containing the read and write descriptors.
-        /// - Throws: `Kernel.Pipe.Error` on failure.
+        /// ## Threading
+        /// The pipe syscall is atomic and does not block. The returned descriptors
+        /// are created in blocking mode by default.
+        ///
+        /// ## Blocking Behavior
+        /// - **Read**: Blocks until data is available or all write ends are closed (EOF)
+        /// - **Write**: Blocks if the pipe buffer is full (typically 64KB on Linux, 16KB on macOS)
+        ///
+        /// ## Descriptor Lifecycle
+        /// Both descriptors must be closed explicitly. Close order matters:
+        /// - Close write first → readers get EOF
+        /// - Close read first → writers get EPIPE/SIGPIPE
+        ///
+        /// ## Errors
+        /// - ``Error/tooManyOpen``: Process or system descriptor limit reached
+        /// - ``Error/noMemory``: Insufficient kernel memory for pipe buffer
+        ///
+        /// - Returns: A tuple containing `(read, write)` descriptors.
+        /// - Throws: ``Kernel/Pipe/Error`` on failure.
         @inlinable
         public static func create() throws(Error) -> (read: Kernel.Descriptor, write: Kernel.Descriptor) {
             var fds: [Int32] = [0, 0]
@@ -53,10 +81,26 @@ extension Kernel {
     public import WinSDK
 
     extension Kernel.Pipe {
-        /// Creates an anonymous pipe.
+        /// Creates an anonymous pipe returning connected read and write handles.
         ///
-        /// - Returns: A tuple containing the read and write descriptors.
-        /// - Throws: `Kernel.Pipe.Error` on failure.
+        /// ## Threading
+        /// The CreatePipe call is atomic and does not block. The returned handles
+        /// are created in blocking (synchronous) mode by default.
+        ///
+        /// ## Blocking Behavior
+        /// - **Read**: Blocks until data is available or the write handle is closed
+        /// - **Write**: Blocks if the pipe buffer is full
+        ///
+        /// ## Handle Lifecycle
+        /// Both handles must be closed explicitly via ``Kernel/Close/close(_:)``.
+        /// Close order matters for signaling.
+        ///
+        /// ## Errors
+        /// - ``Error/tooManyOpen``: System handle limit reached
+        /// - ``Error/noMemory``: Insufficient resources
+        ///
+        /// - Returns: A tuple containing `(read, write)` handles.
+        /// - Throws: ``Kernel/Pipe/Error`` on failure.
         @inlinable
         public static func create() throws(Error) -> (read: Kernel.Descriptor, write: Kernel.Descriptor) {
             var readHandle: HANDLE?

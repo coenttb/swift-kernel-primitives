@@ -24,6 +24,19 @@ extension Kernel.Thread {
     /// - POSIX: `pthread_mutex_t`
     /// - Windows: `SRWLOCK`
     ///
+    /// ## Threading
+    /// - **lock()**: Blocks the calling thread until the mutex is available
+    /// - **tryLock()**: Returns immediately with success/failure, never blocks
+    /// - **unlock()**: Must be called from the thread that acquired the lock
+    ///
+    /// ## Cancellation
+    /// Mutex operations are not cancellation points. A thread blocked on `lock()`
+    /// cannot be cancelled until it acquires the mutex.
+    ///
+    /// ## Scheduling
+    /// No fairness guarantees. Under contention, lock acquisition order is
+    /// platform-dependent and may not be FIFO.
+    ///
     /// ## Safety
     /// This type is `@unchecked Sendable` because it provides internal synchronization.
     /// The mutex itself is what makes cross-thread access safe.
@@ -76,9 +89,20 @@ extension Kernel.Thread {
 // MARK: - Lock Operations
 
 extension Kernel.Thread.Mutex {
-    /// Acquires the mutex.
+    /// Acquires the mutex, blocking until available.
     ///
-    /// Blocks until the mutex is available.
+    /// ## Threading
+    /// Blocks the calling thread until the mutex becomes available. The blocked
+    /// thread yields its CPU time to other threads.
+    ///
+    /// ## Deadlock
+    /// Calling `lock()` on a mutex already held by the current thread causes
+    /// **deadlock** (the thread waits forever). Use `tryLock()` if you need
+    /// to check ownership, or use a recursive mutex implementation if needed.
+    ///
+    /// ## Cancellation
+    /// This is not a cancellation point. A blocked thread cannot be cancelled
+    /// until it successfully acquires the mutex.
     public func lock() {
         #if os(Windows)
             AcquireSRWLockExclusive(&srwlock)
@@ -87,9 +111,14 @@ extension Kernel.Thread.Mutex {
         #endif
     }
 
-    /// Releases the mutex.
+    /// Releases the mutex, allowing other threads to acquire it.
     ///
-    /// - Precondition: The mutex must be held by the current thread.
+    /// ## Precondition
+    /// The mutex **must** be held by the current thread. Calling `unlock()` on
+    /// a mutex not held by the current thread is **undefined behavior**:
+    /// - May silently corrupt internal state
+    /// - May cause other threads to deadlock or crash
+    /// - Behavior is platform-specific and unpredictable
     public func unlock() {
         #if os(Windows)
             ReleaseSRWLockExclusive(&srwlock)
@@ -99,6 +128,13 @@ extension Kernel.Thread.Mutex {
     }
 
     /// Attempts to acquire the mutex without blocking.
+    ///
+    /// ## Threading
+    /// Never blocks. Returns immediately regardless of mutex state.
+    ///
+    /// ## Return Value
+    /// - `true`: Mutex was successfully acquired. Caller must call `unlock()`.
+    /// - `false`: Mutex is held by another thread. No action needed.
     ///
     /// - Returns: `true` if the mutex was acquired, `false` if it was already held.
     public func tryLock() -> Bool {
