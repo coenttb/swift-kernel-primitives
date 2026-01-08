@@ -19,8 +19,6 @@
 // require a type that references `each S`. Since `Kernel.Path` is a fixed type,
 // we provide fixed-arity overloads for the common cases (1, 2, and 3 paths).
 
-public import Kernel_Primitives
-
 // MARK: - String Namespace
 
 extension Kernel.Path {
@@ -95,13 +93,49 @@ extension Kernel.Path.String.Error {
     }
 }
 
-// MARK: - Public Entrypoints
+// MARK: - Scope Accessor
 
 extension Kernel.Path {
+    /// Nested accessor for scoped string-to-path conversions.
+    ///
+    /// Operations use nested accessors for path and array handling:
+    ///
+    /// ```swift
+    /// // Single path
+    /// try Kernel.Path.scope("/tmp/file.txt") { path in
+    ///     try Kernel.File.Open.open(path: path, mode: .read)
+    /// }
+    ///
+    /// // Two paths
+    /// try Kernel.Path.scope("/src", "/dst") { src, dst in
+    ///     try Kernel.File.Clone.clone(from: src, to: dst)
+    /// }
+    ///
+    /// // String arrays (for argv/envp)
+    /// try Kernel.Path.scope.array(["/bin/sh", "-c", "echo hello"]) { argv in
+    ///     // argv is UnsafePointer<UnsafePointer<CChar>?> (NULL-terminated)
+    /// }
+    /// ```
+    @inlinable
+    public static var scope: String.Scope { String.Scope() }
+}
+
+// MARK: - Scope Type
+
+extension Kernel.Path.String {
+    /// Namespace for scoped string-to-path operations.
+    public struct Scope {
+        @inlinable
+        public init() {}
+    }
+}
+
+// MARK: - Single Path
+
+extension Kernel.Path.String.Scope {
     /// Executes a closure with a scoped path converted from a String.
     ///
     /// The path is valid only for the duration of the closure and cannot escape.
-    /// This is the recommended way to use paths with Kernel syscalls.
     ///
     /// - Parameters:
     ///   - string: The path string (UTF-8 on POSIX, UTF-16 on Windows).
@@ -109,86 +143,12 @@ extension Kernel.Path {
     /// - Returns: The value returned by the closure.
     /// - Throws: `String.Error.conversion` if the string contains NUL bytes,
     ///   or `String.Error.body` wrapping the error from the closure.
-    ///
-    /// ```swift
-    /// let fd = try Kernel.Path.scope("/tmp/file.txt") { path in
-    ///     try Kernel.File.Open.open(path: path, mode: .read, options: [], permissions: 0)
-    /// }
-    /// ```
+    @_disfavoredOverload
     @inlinable
-    public static func scope<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
+    public func callAsFunction<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ string: S,
         _ body: (borrowing Kernel.Path) throws(E) -> R
-    ) throws(String.Error<E>) -> R {
-        try String.scope(string, body)
-    }
-
-    /// Executes a closure with a scoped path (non-throwing body).
-    @inlinable
-    public static func scope<S: StringProtocol, R: ~Copyable>(
-        _ string: S,
-        _ body: (borrowing Kernel.Path) -> R
-    ) throws(String.Conversion.Error) -> R {
-        try String.scope(string, body)
-    }
-
-    /// Executes a closure with two scoped paths converted from Strings.
-    ///
-    /// ```swift
-    /// try Kernel.Path.scope("/src", "/dst") { src, dst in
-    ///     try Kernel.File.Clone.clone(from: src, to: dst, behavior: .copyOnly)
-    /// }
-    /// ```
-    @inlinable
-    public static func scope<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
-        _ string1: S1,
-        _ string2: S2,
-        _ body: (borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
-    ) throws(String.Error<E>) -> R {
-        try String.scope(string1, string2, body)
-    }
-
-    /// Executes a closure with two scoped paths (non-throwing body).
-    @inlinable
-    public static func scope<S1: StringProtocol, S2: StringProtocol, R: ~Copyable>(
-        _ string1: S1,
-        _ string2: S2,
-        _ body: (borrowing Kernel.Path, borrowing Kernel.Path) -> R
-    ) throws(String.Conversion.Error) -> R {
-        try String.scope(string1, string2, body)
-    }
-
-    /// Executes a closure with three scoped paths converted from Strings.
-    @inlinable
-    public static func scope<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, E: Swift.Error, R: ~Copyable>(
-        _ string1: S1,
-        _ string2: S2,
-        _ string3: S3,
-        _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
-    ) throws(String.Error<E>) -> R {
-        try String.scope(string1, string2, string3, body)
-    }
-
-    /// Executes a closure with three scoped paths (non-throwing body).
-    @inlinable
-    public static func scope<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, R: ~Copyable>(
-        _ string1: S1,
-        _ string2: S2,
-        _ string3: S3,
-        _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) -> R
-    ) throws(String.Conversion.Error) -> R {
-        try String.scope(string1, string2, string3, body)
-    }
-}
-
-// MARK: - Single Path (Implementation)
-
-extension Kernel.Path.String {
-    @inlinable
-    internal static func scope<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
-        _ string: S,
-        _ body: (borrowing Kernel.Path) throws(E) -> R
-    ) throws(Error<E>) -> R {
+    ) throws(Kernel.Path.String.Error<E>) -> R {
         #if os(Windows)
             let buffer: UnsafeMutablePointer<UInt16>
             do {
@@ -218,11 +178,42 @@ extension Kernel.Path.String {
         #endif
     }
 
+    /// Pass-through overload: when body already throws our wrapper type, rethrow directly.
+    ///
+    /// This prevents nested wrappers like `Error<Error<E>>` when scopes are composed.
+    /// Overload resolution selects this when the body's throw type is `Kernel.Path.String.Error<E>`.
     @inlinable
-    internal static func scope<S: StringProtocol, R: ~Copyable>(
+    public func callAsFunction<S: StringProtocol, NestedBody: Swift.Error, R: ~Copyable>(
+        _ string: S,
+        _ body: (borrowing Kernel.Path) throws(Kernel.Path.String.Error<NestedBody>) -> R
+    ) throws(Kernel.Path.String.Error<NestedBody>) -> R {
+        #if os(Windows)
+            let buffer: UnsafeMutablePointer<UInt16>
+            do {
+                buffer = try _allocateUTF16Buffer(string, index: 0)
+            } catch {
+                throw .conversion(error)
+            }
+            defer { buffer.deallocate() }
+            return try body(Kernel.Path(unsafeCString: buffer))
+        #else
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: 0)
+            } catch {
+                throw .conversion(error)
+            }
+            defer { buffer.deallocate() }
+            return try body(Kernel.Path(unsafeCString: buffer))
+        #endif
+    }
+
+    /// Executes a closure with a scoped path (non-throwing body).
+    @inlinable
+    public func callAsFunction<S: StringProtocol, R: ~Copyable>(
         _ string: S,
         _ body: (borrowing Kernel.Path) -> R
-    ) throws(Conversion.Error) -> R {
+    ) throws(Kernel.Path.String.Conversion.Error) -> R {
         #if os(Windows)
             let buffer = try _allocateUTF16Buffer(string, index: 0)
             defer { buffer.deallocate() }
@@ -235,15 +226,16 @@ extension Kernel.Path.String {
     }
 }
 
-// MARK: - Two Paths (Implementation)
+// MARK: - Two Paths
 
-extension Kernel.Path.String {
+extension Kernel.Path.String.Scope {
+    /// Executes a closure with two scoped paths converted from Strings.
     @inlinable
-    internal static func scope<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ string1: S1,
         _ string2: S2,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
-    ) throws(Error<E>) -> R {
+    ) throws(Kernel.Path.String.Error<E>) -> R {
         #if os(Windows)
             let buffer1: UnsafeMutablePointer<UInt16>
             let buffer2: UnsafeMutablePointer<UInt16>
@@ -293,12 +285,13 @@ extension Kernel.Path.String {
         #endif
     }
 
+    /// Executes a closure with two scoped paths (non-throwing body).
     @inlinable
-    internal static func scope<S1: StringProtocol, S2: StringProtocol, R: ~Copyable>(
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, R: ~Copyable>(
         _ string1: S1,
         _ string2: S2,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path) -> R
-    ) throws(Conversion.Error) -> R {
+    ) throws(Kernel.Path.String.Conversion.Error) -> R {
         #if os(Windows)
             let buffer1 = try _allocateUTF16Buffer(string1, index: 0)
             defer { buffer1.deallocate() }
@@ -321,16 +314,17 @@ extension Kernel.Path.String {
     }
 }
 
-// MARK: - Three Paths (Implementation)
+// MARK: - Three Paths
 
-extension Kernel.Path.String {
+extension Kernel.Path.String.Scope {
+    /// Executes a closure with three scoped paths converted from Strings.
     @inlinable
-    internal static func scope<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, E: Swift.Error, R: ~Copyable>(
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ string1: S1,
         _ string2: S2,
         _ string3: S3,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
-    ) throws(Error<E>) -> R {
+    ) throws(Kernel.Path.String.Error<E>) -> R {
         #if os(Windows)
             let buffer1: UnsafeMutablePointer<UInt16>
             let buffer2: UnsafeMutablePointer<UInt16>
@@ -396,13 +390,14 @@ extension Kernel.Path.String {
         #endif
     }
 
+    /// Executes a closure with three scoped paths (non-throwing body).
     @inlinable
-    internal static func scope<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, R: ~Copyable>(
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, S3: StringProtocol, R: ~Copyable>(
         _ string1: S1,
         _ string2: S2,
         _ string3: S3,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) -> R
-    ) throws(Conversion.Error) -> R {
+    ) throws(Kernel.Path.String.Conversion.Error) -> R {
         #if os(Windows)
             let buffer1 = try _allocateUTF16Buffer(string1, index: 0)
             defer { buffer1.deallocate() }
@@ -428,6 +423,343 @@ extension Kernel.Path.String {
                 Kernel.Path(unsafeCString: buffer3)
             )
         #endif
+    }
+}
+
+// MARK: - Array Accessor
+
+extension Kernel.Path.String.Scope {
+    /// Nested accessor for string array operations.
+    ///
+    /// Converts string arrays to NULL-terminated C string arrays,
+    /// suitable for use with exec* and posix_spawn functions.
+    @inlinable
+    public var array: Array { Array() }
+}
+
+// MARK: - Array Type
+
+extension Kernel.Path.String.Scope {
+    /// Namespace for scoped string array operations.
+    public struct Array {
+        @inlinable
+        public init() {}
+    }
+}
+
+// MARK: - Single Array
+
+extension Kernel.Path.String.Scope.Array {
+    /// Executes a closure with a scoped NULL-terminated C string array.
+    ///
+    /// Converts an array of Swift strings to a NULL-terminated array of C strings,
+    /// suitable for use with exec* and posix_spawn functions.
+    ///
+    /// - Parameters:
+    ///   - strings: The strings to convert.
+    ///   - body: A closure that receives the NULL-terminated array pointer.
+    /// - Returns: The value returned by the closure.
+    /// - Throws: `String.Error.conversion` if any string contains NUL bytes,
+    ///   or `String.Error.body` wrapping the error from the closure.
+    ///
+    /// ```swift
+    /// let argv = ["/bin/echo", "hello", "world"]
+    /// try Kernel.Path.scope.array(argv) { argvPtr in
+    ///     // argvPtr is UnsafePointer<UnsafePointer<CChar>?>
+    ///     // argvPtr[0] -> "/bin/echo\0"
+    ///     // argvPtr[1] -> "hello\0"
+    ///     // argvPtr[2] -> "world\0"
+    ///     // argvPtr[3] -> nil (NULL terminator)
+    /// }
+    /// ```
+    @_disfavoredOverload
+    @inlinable
+    public func callAsFunction<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
+        _ strings: [S],
+        _ body: (UnsafePointer<UnsafePointer<CChar>?>) throws(E) -> R
+    ) throws(Kernel.Path.String.Error<E>) -> R {
+        var buffers: [UnsafeMutablePointer<CChar>] = []
+        buffers.reserveCapacity(strings.count)
+        defer { for buffer in buffers { buffer.deallocate() } }
+
+        for (index, string) in strings.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers.append(buffer)
+        }
+
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings.count + 1
+        )
+        defer { pointerArray.deallocate() }
+
+        for (index, buffer) in buffers.enumerated() {
+            pointerArray[index] = UnsafePointer(buffer)
+        }
+        pointerArray[strings.count] = nil
+
+        do {
+            return try body(UnsafePointer(pointerArray))
+        } catch {
+            throw .body(error)
+        }
+    }
+
+    /// Pass-through overload: when body already throws our wrapper type, rethrow directly.
+    ///
+    /// This prevents nested wrappers like `Error<Error<E>>` when scopes are composed.
+    /// Overload resolution selects this when the body's throw type is `Kernel.Path.String.Error<E>`.
+    @inlinable
+    public func callAsFunction<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
+        _ strings: [S],
+        _ body: (UnsafePointer<UnsafePointer<CChar>?>) throws(Kernel.Path.String.Error<E>) -> R
+    ) throws(Kernel.Path.String.Error<E>) -> R {
+        var buffers: [UnsafeMutablePointer<CChar>] = []
+        buffers.reserveCapacity(strings.count)
+        defer { for buffer in buffers { buffer.deallocate() } }
+
+        for (index, string) in strings.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers.append(buffer)
+        }
+
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings.count + 1
+        )
+        defer { pointerArray.deallocate() }
+
+        for (index, buffer) in buffers.enumerated() {
+            pointerArray[index] = UnsafePointer(buffer)
+        }
+        pointerArray[strings.count] = nil
+
+        return try body(UnsafePointer(pointerArray))
+    }
+
+    /// Executes a closure with a scoped NULL-terminated C string array (non-throwing body).
+    @inlinable
+    public func callAsFunction<S: StringProtocol, R: ~Copyable>(
+        _ strings: [S],
+        _ body: (UnsafePointer<UnsafePointer<CChar>?>) -> R
+    ) throws(Kernel.Path.String.Conversion.Error) -> R {
+        var buffers: [UnsafeMutablePointer<CChar>] = []
+        buffers.reserveCapacity(strings.count)
+        defer { for buffer in buffers { buffer.deallocate() } }
+
+        for (index, string) in strings.enumerated() {
+            let buffer = try _allocateUTF8Buffer(string, index: index)
+            buffers.append(buffer)
+        }
+
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings.count + 1
+        )
+        defer { pointerArray.deallocate() }
+
+        for (index, buffer) in buffers.enumerated() {
+            pointerArray[index] = UnsafePointer(buffer)
+        }
+        pointerArray[strings.count] = nil
+
+        return body(UnsafePointer(pointerArray))
+    }
+}
+
+// MARK: - Two Arrays
+
+extension Kernel.Path.String.Scope.Array {
+    /// Executes a closure with two scoped NULL-terminated C string arrays.
+    ///
+    /// Useful for posix_spawn which needs both argv and envp.
+    ///
+    /// ```swift
+    /// let argv = ["/bin/sh", "-c", "echo $FOO"]
+    /// let envp = ["FOO=bar"]
+    /// try Kernel.Path.scope.array(argv, envp) { argvPtr, envpPtr in
+    ///     // Both are NULL-terminated arrays
+    /// }
+    /// ```
+    @_disfavoredOverload
+    @inlinable
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
+        _ strings1: [S1],
+        _ strings2: [S2],
+        _ body: (UnsafePointer<UnsafePointer<CChar>?>, UnsafePointer<UnsafePointer<CChar>?>) throws(E) -> R
+    ) throws(Kernel.Path.String.Error<E>) -> R {
+        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        buffers1.reserveCapacity(strings1.count)
+        defer { for buffer in buffers1 { buffer.deallocate() } }
+
+        for (index, string) in strings1.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers1.append(buffer)
+        }
+
+        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        buffers2.reserveCapacity(strings2.count)
+        defer { for buffer in buffers2 { buffer.deallocate() } }
+
+        for (index, string) in strings2.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers2.append(buffer)
+        }
+
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings1.count + 1
+        )
+        defer { pointerArray1.deallocate() }
+
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings2.count + 1
+        )
+        defer { pointerArray2.deallocate() }
+
+        for (index, buffer) in buffers1.enumerated() {
+            pointerArray1[index] = UnsafePointer(buffer)
+        }
+        pointerArray1[strings1.count] = nil
+
+        for (index, buffer) in buffers2.enumerated() {
+            pointerArray2[index] = UnsafePointer(buffer)
+        }
+        pointerArray2[strings2.count] = nil
+
+        do {
+            return try body(UnsafePointer(pointerArray1), UnsafePointer(pointerArray2))
+        } catch {
+            throw .body(error)
+        }
+    }
+
+    /// Pass-through overload: when body already throws our wrapper type, rethrow directly.
+    ///
+    /// This prevents nested wrappers like `Error<Error<E>>` when scopes are composed.
+    /// Overload resolution selects this when the body's throw type is `Kernel.Path.String.Error<E>`.
+    @inlinable
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
+        _ strings1: [S1],
+        _ strings2: [S2],
+        _ body: (
+            UnsafePointer<UnsafePointer<CChar>?>,
+            UnsafePointer<UnsafePointer<CChar>?>
+        ) throws(Kernel.Path.String.Error<E>) -> R
+    ) throws(Kernel.Path.String.Error<E>) -> R {
+        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        buffers1.reserveCapacity(strings1.count)
+        defer { for buffer in buffers1 { buffer.deallocate() } }
+
+        for (index, string) in strings1.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers1.append(buffer)
+        }
+
+        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        buffers2.reserveCapacity(strings2.count)
+        defer { for buffer in buffers2 { buffer.deallocate() } }
+
+        for (index, string) in strings2.enumerated() {
+            let buffer: UnsafeMutablePointer<CChar>
+            do {
+                buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+            } catch {
+                throw .conversion(error)
+            }
+            buffers2.append(buffer)
+        }
+
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings1.count + 1
+        )
+        defer { pointerArray1.deallocate() }
+
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings2.count + 1
+        )
+        defer { pointerArray2.deallocate() }
+
+        for (index, buffer) in buffers1.enumerated() {
+            pointerArray1[index] = UnsafePointer(buffer)
+        }
+        pointerArray1[strings1.count] = nil
+
+        for (index, buffer) in buffers2.enumerated() {
+            pointerArray2[index] = UnsafePointer(buffer)
+        }
+        pointerArray2[strings2.count] = nil
+
+        return try body(UnsafePointer(pointerArray1), UnsafePointer(pointerArray2))
+    }
+
+    /// Executes a closure with two scoped NULL-terminated C string arrays (non-throwing body).
+    @inlinable
+    public func callAsFunction<S1: StringProtocol, S2: StringProtocol, R: ~Copyable>(
+        _ strings1: [S1],
+        _ strings2: [S2],
+        _ body: (UnsafePointer<UnsafePointer<CChar>?>, UnsafePointer<UnsafePointer<CChar>?>) -> R
+    ) throws(Kernel.Path.String.Conversion.Error) -> R {
+        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        buffers1.reserveCapacity(strings1.count)
+        defer { for buffer in buffers1 { buffer.deallocate() } }
+
+        for (index, string) in strings1.enumerated() {
+            let buffer = try _allocateUTF8Buffer(string, index: index)
+            buffers1.append(buffer)
+        }
+
+        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        buffers2.reserveCapacity(strings2.count)
+        defer { for buffer in buffers2 { buffer.deallocate() } }
+
+        for (index, string) in strings2.enumerated() {
+            let buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+            buffers2.append(buffer)
+        }
+
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings1.count + 1
+        )
+        defer { pointerArray1.deallocate() }
+
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+            capacity: strings2.count + 1
+        )
+        defer { pointerArray2.deallocate() }
+
+        for (index, buffer) in buffers1.enumerated() {
+            pointerArray1[index] = UnsafePointer(buffer)
+        }
+        pointerArray1[strings1.count] = nil
+
+        for (index, buffer) in buffers2.enumerated() {
+            pointerArray2[index] = UnsafePointer(buffer)
+        }
+        pointerArray2[strings2.count] = nil
+
+        return body(UnsafePointer(pointerArray1), UnsafePointer(pointerArray2))
     }
 }
 
