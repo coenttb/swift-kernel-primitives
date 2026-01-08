@@ -54,4 +54,3 @@ extension Kernel.Device: ExpressibleByIntegerLiteral {
         self.rawValue = value
     }
 }
-
