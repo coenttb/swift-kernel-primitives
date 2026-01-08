@@ -15,6 +15,18 @@
 // They allocate heap buffers and are NOT suitable for strict embedded contexts.
 // For Layer 0 (zero-allocation), use the pointer-based initializers in Kernel Primitives.
 //
+// ## Platform String Representation
+//
+// - **POSIX (macOS, Linux, BSD):** Paths are null-terminated UTF-8 (`CChar*`).
+//   The kernel treats paths as opaque byte sequences; UTF-8 is convention.
+//
+// - **Windows:** Paths are null-terminated UTF-16LE (`UInt16*`, aka `LPCWSTR`).
+//   Windows APIs use "wide" (W-suffix) functions that expect UTF-16.
+//
+// The abstraction point is `Kernel.Path.Char`:
+// - `CChar` on POSIX
+// - `UInt16` on Windows
+//
 // Note: Parameter packs cannot express `repeat Kernel.Path` because pack expansions
 // require a type that references `each S`. Since `Kernel.Path` is a fixed type,
 // we provide fixed-arity overloads for the common cases (1, 2, and 3 paths).
@@ -113,7 +125,7 @@ extension Kernel.Path {
     ///
     /// // String arrays (for argv/envp)
     /// try Kernel.Path.scope.array(["/bin/sh", "-c", "echo hello"]) { argv in
-    ///     // argv is UnsafePointer<UnsafePointer<CChar>?> (NULL-terminated)
+    ///     // argv is UnsafePointer<UnsafePointer<Kernel.Path.Char>?> (NULL-terminated)
     /// }
     /// ```
     @inlinable
@@ -149,33 +161,18 @@ extension Kernel.Path.String.Scope {
         _ string: S,
         _ body: (borrowing Kernel.Path) throws(E) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        #if os(Windows)
-            let buffer: UnsafeMutablePointer<UInt16>
-            do {
-                buffer = try _allocateUTF16Buffer(string, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer.deallocate() }
-            do {
-                return try body(Kernel.Path(unsafeCString: buffer))
-            } catch {
-                throw .body(error)
-            }
-        #else
-            let buffer: UnsafeMutablePointer<CChar>
-            do {
-                buffer = try _allocateUTF8Buffer(string, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer.deallocate() }
-            do {
-                return try body(Kernel.Path(unsafeCString: buffer))
-            } catch {
-                throw .body(error)
-            }
-        #endif
+        let buffer: UnsafeMutablePointer<Kernel.Path.Char>
+        do {
+            buffer = try _allocateBuffer(string, index: 0)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer.deallocate() }
+        do {
+            return try body(Kernel.Path(unsafeCString: buffer))
+        } catch {
+            throw .body(error)
+        }
     }
 
     /// Pass-through overload: when body already throws our wrapper type, rethrow directly.
@@ -187,25 +184,14 @@ extension Kernel.Path.String.Scope {
         _ string: S,
         _ body: (borrowing Kernel.Path) throws(Kernel.Path.String.Error<NestedBody>) -> R
     ) throws(Kernel.Path.String.Error<NestedBody>) -> R {
-        #if os(Windows)
-            let buffer: UnsafeMutablePointer<UInt16>
-            do {
-                buffer = try _allocateUTF16Buffer(string, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer.deallocate() }
-            return try body(Kernel.Path(unsafeCString: buffer))
-        #else
-            let buffer: UnsafeMutablePointer<CChar>
-            do {
-                buffer = try _allocateUTF8Buffer(string, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer.deallocate() }
-            return try body(Kernel.Path(unsafeCString: buffer))
-        #endif
+        let buffer: UnsafeMutablePointer<Kernel.Path.Char>
+        do {
+            buffer = try _allocateBuffer(string, index: 0)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer.deallocate() }
+        return try body(Kernel.Path(unsafeCString: buffer))
     }
 
     /// Executes a closure with a scoped path (non-throwing body).
@@ -214,15 +200,9 @@ extension Kernel.Path.String.Scope {
         _ string: S,
         _ body: (borrowing Kernel.Path) -> R
     ) throws(Kernel.Path.String.Conversion.Error) -> R {
-        #if os(Windows)
-            let buffer = try _allocateUTF16Buffer(string, index: 0)
-            defer { buffer.deallocate() }
-            return body(Kernel.Path(unsafeCString: buffer))
-        #else
-            let buffer = try _allocateUTF8Buffer(string, index: 0)
-            defer { buffer.deallocate() }
-            return body(Kernel.Path(unsafeCString: buffer))
-        #endif
+        let buffer = try _allocateBuffer(string, index: 0)
+        defer { buffer.deallocate() }
+        return body(Kernel.Path(unsafeCString: buffer))
     }
 }
 
@@ -236,53 +216,28 @@ extension Kernel.Path.String.Scope {
         _ string2: S2,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        #if os(Windows)
-            let buffer1: UnsafeMutablePointer<UInt16>
-            let buffer2: UnsafeMutablePointer<UInt16>
-            do {
-                buffer1 = try _allocateUTF16Buffer(string1, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer1.deallocate() }
-            do {
-                buffer2 = try _allocateUTF16Buffer(string2, index: 1)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer2.deallocate() }
-            do {
-                return try body(
-                    Kernel.Path(unsafeCString: buffer1),
-                    Kernel.Path(unsafeCString: buffer2)
-                )
-            } catch {
-                throw .body(error)
-            }
-        #else
-            let buffer1: UnsafeMutablePointer<CChar>
-            let buffer2: UnsafeMutablePointer<CChar>
-            do {
-                buffer1 = try _allocateUTF8Buffer(string1, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer1.deallocate() }
-            do {
-                buffer2 = try _allocateUTF8Buffer(string2, index: 1)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer2.deallocate() }
-            do {
-                return try body(
-                    Kernel.Path(unsafeCString: buffer1),
-                    Kernel.Path(unsafeCString: buffer2)
-                )
-            } catch {
-                throw .body(error)
-            }
-        #endif
+        let buffer1: UnsafeMutablePointer<Kernel.Path.Char>
+        let buffer2: UnsafeMutablePointer<Kernel.Path.Char>
+        do {
+            buffer1 = try _allocateBuffer(string1, index: 0)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer1.deallocate() }
+        do {
+            buffer2 = try _allocateBuffer(string2, index: 1)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer2.deallocate() }
+        do {
+            return try body(
+                Kernel.Path(unsafeCString: buffer1),
+                Kernel.Path(unsafeCString: buffer2)
+            )
+        } catch {
+            throw .body(error)
+        }
     }
 
     /// Executes a closure with two scoped paths (non-throwing body).
@@ -292,25 +247,14 @@ extension Kernel.Path.String.Scope {
         _ string2: S2,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path) -> R
     ) throws(Kernel.Path.String.Conversion.Error) -> R {
-        #if os(Windows)
-            let buffer1 = try _allocateUTF16Buffer(string1, index: 0)
-            defer { buffer1.deallocate() }
-            let buffer2 = try _allocateUTF16Buffer(string2, index: 1)
-            defer { buffer2.deallocate() }
-            return body(
-                Kernel.Path(unsafeCString: buffer1),
-                Kernel.Path(unsafeCString: buffer2)
-            )
-        #else
-            let buffer1 = try _allocateUTF8Buffer(string1, index: 0)
-            defer { buffer1.deallocate() }
-            let buffer2 = try _allocateUTF8Buffer(string2, index: 1)
-            defer { buffer2.deallocate() }
-            return body(
-                Kernel.Path(unsafeCString: buffer1),
-                Kernel.Path(unsafeCString: buffer2)
-            )
-        #endif
+        let buffer1 = try _allocateBuffer(string1, index: 0)
+        defer { buffer1.deallocate() }
+        let buffer2 = try _allocateBuffer(string2, index: 1)
+        defer { buffer2.deallocate() }
+        return body(
+            Kernel.Path(unsafeCString: buffer1),
+            Kernel.Path(unsafeCString: buffer2)
+        )
     }
 }
 
@@ -325,69 +269,36 @@ extension Kernel.Path.String.Scope {
         _ string3: S3,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) throws(E) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        #if os(Windows)
-            let buffer1: UnsafeMutablePointer<UInt16>
-            let buffer2: UnsafeMutablePointer<UInt16>
-            let buffer3: UnsafeMutablePointer<UInt16>
-            do {
-                buffer1 = try _allocateUTF16Buffer(string1, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer1.deallocate() }
-            do {
-                buffer2 = try _allocateUTF16Buffer(string2, index: 1)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer2.deallocate() }
-            do {
-                buffer3 = try _allocateUTF16Buffer(string3, index: 2)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer3.deallocate() }
-            do {
-                return try body(
-                    Kernel.Path(unsafeCString: buffer1),
-                    Kernel.Path(unsafeCString: buffer2),
-                    Kernel.Path(unsafeCString: buffer3)
-                )
-            } catch {
-                throw .body(error)
-            }
-        #else
-            let buffer1: UnsafeMutablePointer<CChar>
-            let buffer2: UnsafeMutablePointer<CChar>
-            let buffer3: UnsafeMutablePointer<CChar>
-            do {
-                buffer1 = try _allocateUTF8Buffer(string1, index: 0)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer1.deallocate() }
-            do {
-                buffer2 = try _allocateUTF8Buffer(string2, index: 1)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer2.deallocate() }
-            do {
-                buffer3 = try _allocateUTF8Buffer(string3, index: 2)
-            } catch {
-                throw .conversion(error)
-            }
-            defer { buffer3.deallocate() }
-            do {
-                return try body(
-                    Kernel.Path(unsafeCString: buffer1),
-                    Kernel.Path(unsafeCString: buffer2),
-                    Kernel.Path(unsafeCString: buffer3)
-                )
-            } catch {
-                throw .body(error)
-            }
-        #endif
+        let buffer1: UnsafeMutablePointer<Kernel.Path.Char>
+        let buffer2: UnsafeMutablePointer<Kernel.Path.Char>
+        let buffer3: UnsafeMutablePointer<Kernel.Path.Char>
+        do {
+            buffer1 = try _allocateBuffer(string1, index: 0)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer1.deallocate() }
+        do {
+            buffer2 = try _allocateBuffer(string2, index: 1)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer2.deallocate() }
+        do {
+            buffer3 = try _allocateBuffer(string3, index: 2)
+        } catch {
+            throw .conversion(error)
+        }
+        defer { buffer3.deallocate() }
+        do {
+            return try body(
+                Kernel.Path(unsafeCString: buffer1),
+                Kernel.Path(unsafeCString: buffer2),
+                Kernel.Path(unsafeCString: buffer3)
+            )
+        } catch {
+            throw .body(error)
+        }
     }
 
     /// Executes a closure with three scoped paths (non-throwing body).
@@ -398,31 +309,17 @@ extension Kernel.Path.String.Scope {
         _ string3: S3,
         _ body: (borrowing Kernel.Path, borrowing Kernel.Path, borrowing Kernel.Path) -> R
     ) throws(Kernel.Path.String.Conversion.Error) -> R {
-        #if os(Windows)
-            let buffer1 = try _allocateUTF16Buffer(string1, index: 0)
-            defer { buffer1.deallocate() }
-            let buffer2 = try _allocateUTF16Buffer(string2, index: 1)
-            defer { buffer2.deallocate() }
-            let buffer3 = try _allocateUTF16Buffer(string3, index: 2)
-            defer { buffer3.deallocate() }
-            return body(
-                Kernel.Path(unsafeCString: buffer1),
-                Kernel.Path(unsafeCString: buffer2),
-                Kernel.Path(unsafeCString: buffer3)
-            )
-        #else
-            let buffer1 = try _allocateUTF8Buffer(string1, index: 0)
-            defer { buffer1.deallocate() }
-            let buffer2 = try _allocateUTF8Buffer(string2, index: 1)
-            defer { buffer2.deallocate() }
-            let buffer3 = try _allocateUTF8Buffer(string3, index: 2)
-            defer { buffer3.deallocate() }
-            return body(
-                Kernel.Path(unsafeCString: buffer1),
-                Kernel.Path(unsafeCString: buffer2),
-                Kernel.Path(unsafeCString: buffer3)
-            )
-        #endif
+        let buffer1 = try _allocateBuffer(string1, index: 0)
+        defer { buffer1.deallocate() }
+        let buffer2 = try _allocateBuffer(string2, index: 1)
+        defer { buffer2.deallocate() }
+        let buffer3 = try _allocateBuffer(string3, index: 2)
+        defer { buffer3.deallocate() }
+        return body(
+            Kernel.Path(unsafeCString: buffer1),
+            Kernel.Path(unsafeCString: buffer2),
+            Kernel.Path(unsafeCString: buffer3)
+        )
     }
 }
 
@@ -431,8 +328,11 @@ extension Kernel.Path.String.Scope {
 extension Kernel.Path.String.Scope {
     /// Nested accessor for string array operations.
     ///
-    /// Converts string arrays to NULL-terminated C string arrays,
-    /// suitable for use with exec* and posix_spawn functions.
+    /// Converts string arrays to NULL-terminated platform string arrays:
+    /// - **POSIX:** UTF-8 (`CChar*`), suitable for exec* and posix_spawn
+    /// - **Windows:** UTF-16 (`UInt16*`), suitable for Windows APIs
+    ///
+    /// The closure receives `UnsafePointer<UnsafePointer<Kernel.Path.Char>?>`.
     @inlinable
     public var array: Array { Array() }
 }
@@ -450,10 +350,11 @@ extension Kernel.Path.String.Scope {
 // MARK: - Single Array
 
 extension Kernel.Path.String.Scope.Array {
-    /// Executes a closure with a scoped NULL-terminated C string array.
+    /// Executes a closure with a scoped NULL-terminated platform string array.
     ///
-    /// Converts an array of Swift strings to a NULL-terminated array of C strings,
-    /// suitable for use with exec* and posix_spawn functions.
+    /// Converts an array of Swift strings to a NULL-terminated array of platform strings:
+    /// - **POSIX:** UTF-8 (`CChar*`), suitable for exec* and posix_spawn
+    /// - **Windows:** UTF-16 (`UInt16*`), suitable for Windows APIs
     ///
     /// - Parameters:
     ///   - strings: The strings to convert.
@@ -465,34 +366,38 @@ extension Kernel.Path.String.Scope.Array {
     /// ```swift
     /// let argv = ["/bin/echo", "hello", "world"]
     /// try Kernel.Path.scope.array(argv) { argvPtr in
-    ///     // argvPtr is UnsafePointer<UnsafePointer<CChar>?>
+    ///     // argvPtr is UnsafePointer<UnsafePointer<Kernel.Path.Char>?>
     ///     // argvPtr[0] -> "/bin/echo\0"
     ///     // argvPtr[1] -> "hello\0"
     ///     // argvPtr[2] -> "world\0"
     ///     // argvPtr[3] -> nil (NULL terminator)
     /// }
     /// ```
+    ///
+    /// - Note: On Windows, process creation typically uses `CreateProcessW` with a command
+    ///   line string rather than an argv array. This API is useful for internal bridging
+    ///   and APIs that accept `LPCWSTR*`.
     @_disfavoredOverload
     @inlinable
     public func callAsFunction<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ strings: [S],
-        _ body: (UnsafePointer<UnsafePointer<CChar>?>) throws(E) -> R
+        _ body: (UnsafePointer<UnsafePointer<Kernel.Path.Char>?>) throws(E) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        var buffers: [UnsafeMutablePointer<CChar>] = []
+        var buffers: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers.reserveCapacity(strings.count)
         defer { for buffer in buffers { buffer.deallocate() } }
 
         for (index, string) in strings.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: index)
+                buffer = try _allocateBuffer(string, index: index)
             } catch {
                 throw .conversion(error)
             }
             buffers.append(buffer)
         }
 
-        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings.count + 1
         )
         defer { pointerArray.deallocate() }
@@ -516,23 +421,23 @@ extension Kernel.Path.String.Scope.Array {
     @inlinable
     public func callAsFunction<S: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ strings: [S],
-        _ body: (UnsafePointer<UnsafePointer<CChar>?>) throws(Kernel.Path.String.Error<E>) -> R
+        _ body: (UnsafePointer<UnsafePointer<Kernel.Path.Char>?>) throws(Kernel.Path.String.Error<E>) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        var buffers: [UnsafeMutablePointer<CChar>] = []
+        var buffers: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers.reserveCapacity(strings.count)
         defer { for buffer in buffers { buffer.deallocate() } }
 
         for (index, string) in strings.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: index)
+                buffer = try _allocateBuffer(string, index: index)
             } catch {
                 throw .conversion(error)
             }
             buffers.append(buffer)
         }
 
-        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings.count + 1
         )
         defer { pointerArray.deallocate() }
@@ -545,22 +450,22 @@ extension Kernel.Path.String.Scope.Array {
         return try body(UnsafePointer(pointerArray))
     }
 
-    /// Executes a closure with a scoped NULL-terminated C string array (non-throwing body).
+    /// Executes a closure with a scoped NULL-terminated platform string array (non-throwing body).
     @inlinable
     public func callAsFunction<S: StringProtocol, R: ~Copyable>(
         _ strings: [S],
-        _ body: (UnsafePointer<UnsafePointer<CChar>?>) -> R
+        _ body: (UnsafePointer<UnsafePointer<Kernel.Path.Char>?>) -> R
     ) throws(Kernel.Path.String.Conversion.Error) -> R {
-        var buffers: [UnsafeMutablePointer<CChar>] = []
+        var buffers: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers.reserveCapacity(strings.count)
         defer { for buffer in buffers { buffer.deallocate() } }
 
         for (index, string) in strings.enumerated() {
-            let buffer = try _allocateUTF8Buffer(string, index: index)
+            let buffer = try _allocateBuffer(string, index: index)
             buffers.append(buffer)
         }
 
-        let pointerArray = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings.count + 1
         )
         defer { pointerArray.deallocate() }
@@ -577,7 +482,7 @@ extension Kernel.Path.String.Scope.Array {
 // MARK: - Two Arrays
 
 extension Kernel.Path.String.Scope.Array {
-    /// Executes a closure with two scoped NULL-terminated C string arrays.
+    /// Executes a closure with two scoped NULL-terminated platform string arrays.
     ///
     /// Useful for posix_spawn which needs both argv and envp.
     ///
@@ -585,7 +490,7 @@ extension Kernel.Path.String.Scope.Array {
     /// let argv = ["/bin/sh", "-c", "echo $FOO"]
     /// let envp = ["FOO=bar"]
     /// try Kernel.Path.scope.array(argv, envp) { argvPtr, envpPtr in
-    ///     // Both are NULL-terminated arrays
+    ///     // Both are NULL-terminated arrays of Kernel.Path.Char pointers
     /// }
     /// ```
     @_disfavoredOverload
@@ -593,42 +498,42 @@ extension Kernel.Path.String.Scope.Array {
     public func callAsFunction<S1: StringProtocol, S2: StringProtocol, E: Swift.Error, R: ~Copyable>(
         _ strings1: [S1],
         _ strings2: [S2],
-        _ body: (UnsafePointer<UnsafePointer<CChar>?>, UnsafePointer<UnsafePointer<CChar>?>) throws(E) -> R
+        _ body: (UnsafePointer<UnsafePointer<Kernel.Path.Char>?>, UnsafePointer<UnsafePointer<Kernel.Path.Char>?>) throws(E) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        var buffers1: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers1.reserveCapacity(strings1.count)
         defer { for buffer in buffers1 { buffer.deallocate() } }
 
         for (index, string) in strings1.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: index)
+                buffer = try _allocateBuffer(string, index: index)
             } catch {
                 throw .conversion(error)
             }
             buffers1.append(buffer)
         }
 
-        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        var buffers2: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers2.reserveCapacity(strings2.count)
         defer { for buffer in buffers2 { buffer.deallocate() } }
 
         for (index, string) in strings2.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+                buffer = try _allocateBuffer(string, index: strings1.count + index)
             } catch {
                 throw .conversion(error)
             }
             buffers2.append(buffer)
         }
 
-        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings1.count + 1
         )
         defer { pointerArray1.deallocate() }
 
-        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings2.count + 1
         )
         defer { pointerArray2.deallocate() }
@@ -659,44 +564,44 @@ extension Kernel.Path.String.Scope.Array {
         _ strings1: [S1],
         _ strings2: [S2],
         _ body: (
-            UnsafePointer<UnsafePointer<CChar>?>,
-            UnsafePointer<UnsafePointer<CChar>?>
+            UnsafePointer<UnsafePointer<Kernel.Path.Char>?>,
+            UnsafePointer<UnsafePointer<Kernel.Path.Char>?>
         ) throws(Kernel.Path.String.Error<E>) -> R
     ) throws(Kernel.Path.String.Error<E>) -> R {
-        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        var buffers1: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers1.reserveCapacity(strings1.count)
         defer { for buffer in buffers1 { buffer.deallocate() } }
 
         for (index, string) in strings1.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: index)
+                buffer = try _allocateBuffer(string, index: index)
             } catch {
                 throw .conversion(error)
             }
             buffers1.append(buffer)
         }
 
-        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        var buffers2: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers2.reserveCapacity(strings2.count)
         defer { for buffer in buffers2 { buffer.deallocate() } }
 
         for (index, string) in strings2.enumerated() {
-            let buffer: UnsafeMutablePointer<CChar>
+            let buffer: UnsafeMutablePointer<Kernel.Path.Char>
             do {
-                buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+                buffer = try _allocateBuffer(string, index: strings1.count + index)
             } catch {
                 throw .conversion(error)
             }
             buffers2.append(buffer)
         }
 
-        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings1.count + 1
         )
         defer { pointerArray1.deallocate() }
 
-        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings2.count + 1
         )
         defer { pointerArray2.deallocate() }
@@ -714,37 +619,37 @@ extension Kernel.Path.String.Scope.Array {
         return try body(UnsafePointer(pointerArray1), UnsafePointer(pointerArray2))
     }
 
-    /// Executes a closure with two scoped NULL-terminated C string arrays (non-throwing body).
+    /// Executes a closure with two scoped NULL-terminated platform string arrays (non-throwing body).
     @inlinable
     public func callAsFunction<S1: StringProtocol, S2: StringProtocol, R: ~Copyable>(
         _ strings1: [S1],
         _ strings2: [S2],
-        _ body: (UnsafePointer<UnsafePointer<CChar>?>, UnsafePointer<UnsafePointer<CChar>?>) -> R
+        _ body: (UnsafePointer<UnsafePointer<Kernel.Path.Char>?>, UnsafePointer<UnsafePointer<Kernel.Path.Char>?>) -> R
     ) throws(Kernel.Path.String.Conversion.Error) -> R {
-        var buffers1: [UnsafeMutablePointer<CChar>] = []
+        var buffers1: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers1.reserveCapacity(strings1.count)
         defer { for buffer in buffers1 { buffer.deallocate() } }
 
         for (index, string) in strings1.enumerated() {
-            let buffer = try _allocateUTF8Buffer(string, index: index)
+            let buffer = try _allocateBuffer(string, index: index)
             buffers1.append(buffer)
         }
 
-        var buffers2: [UnsafeMutablePointer<CChar>] = []
+        var buffers2: [UnsafeMutablePointer<Kernel.Path.Char>] = []
         buffers2.reserveCapacity(strings2.count)
         defer { for buffer in buffers2 { buffer.deallocate() } }
 
         for (index, string) in strings2.enumerated() {
-            let buffer = try _allocateUTF8Buffer(string, index: strings1.count + index)
+            let buffer = try _allocateBuffer(string, index: strings1.count + index)
             buffers2.append(buffer)
         }
 
-        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray1 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings1.count + 1
         )
         defer { pointerArray1.deallocate() }
 
-        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(
+        let pointerArray2 = UnsafeMutablePointer<UnsafePointer<Kernel.Path.Char>?>.allocate(
             capacity: strings2.count + 1
         )
         defer { pointerArray2.deallocate() }
@@ -763,58 +668,53 @@ extension Kernel.Path.String.Scope.Array {
     }
 }
 
-// MARK: - Buffer Allocation Helpers
+// MARK: - Buffer Allocation Helper
 
-#if os(Windows)
-    @usableFromInline
-    internal func _allocateUTF16Buffer<S: StringProtocol>(
-        _ string: S,
-        index: Int
-    ) throws(Kernel.Path.String.Conversion.Error) -> UnsafeMutablePointer<UInt16> {
-        let s = Swift.String(string)
-        let utf16 = s.utf16
-
-        // Check for interior NUL
-        for unit in utf16 {
-            if unit == 0 {
-                throw .interiorNUL(index: index)
-            }
+/// Allocates a null-terminated platform string buffer from a Swift string.
+///
+/// - Parameters:
+///   - string: The source string.
+///   - index: Index for error reporting in multi-path operations.
+/// - Returns: A newly allocated buffer containing the null-terminated string.
+/// - Throws: `interiorNUL` if the string contains an embedded NUL character.
+///
+/// ## Platform Encoding
+///
+/// - **POSIX:** UTF-8 (`CChar` / `Int8`)
+/// - **Windows:** UTF-16LE (`UInt16`)
+@usableFromInline
+internal func _allocateBuffer<S: StringProtocol>(
+    _ string: S,
+    index: Int
+) throws(Kernel.Path.String.Conversion.Error) -> UnsafeMutablePointer<Kernel.Path.Char> {
+    let s = Swift.String(string)
+    #if os(Windows)
+        let units = s.utf16
+        for unit in units where unit == 0 {
+            throw .interiorNUL(index: index)
         }
-
-        let count = utf16.count + 1
-        let buffer = UnsafeMutablePointer<UInt16>.allocate(capacity: count)
+        let count = units.count + 1
+        let buffer = UnsafeMutablePointer<Kernel.Path.Char>.allocate(capacity: count)
         var i = 0
-        for unit in utf16 {
+        for unit in units {
             buffer[i] = unit
             i += 1
         }
         buffer[i] = 0
         return buffer
-    }
-#else
-    @usableFromInline
-    internal func _allocateUTF8Buffer<S: StringProtocol>(
-        _ string: S,
-        index: Int
-    ) throws(Kernel.Path.String.Conversion.Error) -> UnsafeMutablePointer<CChar> {
-        let s = Swift.String(string)
-        let utf8 = s.utf8
-
-        // Check for interior NUL
-        for byte in utf8 {
-            if byte == 0 {
-                throw .interiorNUL(index: index)
-            }
+    #else
+        let bytes = s.utf8
+        for byte in bytes where byte == 0 {
+            throw .interiorNUL(index: index)
         }
-
-        let count = utf8.count + 1
-        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: count)
+        let count = bytes.count + 1
+        let buffer = UnsafeMutablePointer<Kernel.Path.Char>.allocate(capacity: count)
         var i = 0
-        for byte in utf8 {
-            buffer[i] = CChar(bitPattern: byte)
+        for byte in bytes {
+            buffer[i] = Kernel.Path.Char(bitPattern: byte)
             i += 1
         }
         buffer[i] = 0
         return buffer
-    }
-#endif
+    #endif
+}
